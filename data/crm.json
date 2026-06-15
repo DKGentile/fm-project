@@ -1,0 +1,448 @@
+{
+  "_comment": "Mock CRM for Northwind Goods. All dates are anchored to _anchorDate and shifted to 'now' at load time (see server/src/data/store.ts) so the demo scenarios stay valid whenever you run it. Each customer is crafted to exercise a specific refund-policy rule.",
+  "_anchorDate": "2026-06-13",
+  "customers": [
+    {
+      "id": "C001",
+      "name": "Alice Nguyen",
+      "email": "alice.nguyen@example.com",
+      "phone": "+1-415-555-0101",
+      "loyaltyTier": "gold",
+      "accountCreated": "2023-02-10",
+      "refundsLast12mo": 0,
+      "lifetimeValue": 2450.0,
+      "flags": [],
+      "scenario": "Standard approve: in-window, new-condition electronics. Multi-order account.",
+      "orders": [
+        {
+          "id": "O1001",
+          "date": "2026-05-30",
+          "deliveredDate": "2026-06-03",
+          "status": "delivered",
+          "total": 129.99,
+          "paymentMethod": "Visa ****4242",
+          "items": [
+            { "sku": "SKU-AUDIO-22", "name": "Aurora Bluetooth Speaker", "category": "electronics", "price": 129.99, "quantity": 1, "condition": "new" }
+          ]
+        },
+        {
+          "id": "O1018",
+          "date": "2026-06-03",
+          "deliveredDate": "2026-06-07",
+          "status": "delivered",
+          "total": 79.0,
+          "paymentMethod": "Visa ****4242",
+          "items": [
+            { "sku": "SKU-APRL-08", "name": "Cotton Lounge Set", "category": "apparel", "price": 79.0, "quantity": 1, "condition": "new" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "C002",
+      "name": "Bob Martinez",
+      "email": "bob.martinez@example.com",
+      "phone": "+1-415-555-0102",
+      "loyaltyTier": "standard",
+      "accountCreated": "2022-08-01",
+      "refundsLast12mo": 1,
+      "lifetimeValue": 880.0,
+      "flags": [],
+      "scenario": "Deny: delivered 45 days ago, outside the 30-day window (R1).",
+      "orders": [
+        {
+          "id": "O1002",
+          "date": "2026-04-25",
+          "deliveredDate": "2026-04-29",
+          "status": "delivered",
+          "total": 74.5,
+          "paymentMethod": "Mastercard ****8810",
+          "items": [
+            { "sku": "SKU-HOME-08", "name": "Cast Iron Skillet 12in", "category": "home", "price": 74.5, "quantity": 1, "condition": "new" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "C003",
+      "name": "Carol Smith",
+      "email": "carol.smith@example.com",
+      "phone": "+1-415-555-0103",
+      "loyaltyTier": "silver",
+      "accountCreated": "2021-11-20",
+      "refundsLast12mo": 0,
+      "lifetimeValue": 1320.0,
+      "flags": [],
+      "scenario": "Deny: gift card is final sale (R3).",
+      "orders": [
+        {
+          "id": "O1003",
+          "date": "2026-06-05",
+          "deliveredDate": "2026-06-08",
+          "status": "delivered",
+          "total": 100.0,
+          "paymentMethod": "Visa ****1199",
+          "items": [
+            { "sku": "SKU-GIFT-50", "name": "Northwind Gift Card $100", "category": "gift_card", "price": 100.0, "quantity": 1, "condition": "new", "finalSale": true }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "C004",
+      "name": "David Okafor",
+      "email": "david.okafor@example.com",
+      "phone": "+1-415-555-0104",
+      "loyaltyTier": "platinum",
+      "accountCreated": "2020-05-15",
+      "refundsLast12mo": 1,
+      "lifetimeValue": 8650.0,
+      "flags": [],
+      "scenario": "Photo + escalate: defective laptop > $100 (R8) AND order total > $500 (R9).",
+      "orders": [
+        {
+          "id": "O1004",
+          "date": "2026-06-01",
+          "deliveredDate": "2026-06-04",
+          "status": "delivered",
+          "total": 899.0,
+          "paymentMethod": "Amex ****3001",
+          "photoEvidenceProvided": false,
+          "items": [
+            { "sku": "SKU-COMP-77", "name": "Northwind UltraBook 14\"", "category": "electronics", "price": 899.0, "quantity": 1, "condition": "defective" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "C005",
+      "name": "Eve Thompson",
+      "email": "eve.thompson@example.com",
+      "phone": "+1-415-555-0105",
+      "loyaltyTier": "standard",
+      "accountCreated": "2023-09-09",
+      "refundsLast12mo": 5,
+      "lifetimeValue": 540.0,
+      "flags": ["refund_abuse_review"],
+      "scenario": "Escalate: 5 refunds in trailing 12 months, over the abuse threshold (R10).",
+      "orders": [
+        {
+          "id": "O1005",
+          "date": "2026-06-02",
+          "deliveredDate": "2026-06-05",
+          "status": "delivered",
+          "total": 59.99,
+          "paymentMethod": "Visa ****7777",
+          "items": [
+            { "sku": "SKU-APRL-14", "name": "Trailblazer Rain Jacket", "category": "apparel", "price": 59.99, "quantity": 1, "condition": "new" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "C006",
+      "name": "Frank Li",
+      "email": "frank.li@example.com",
+      "phone": "+1-415-555-0106",
+      "loyaltyTier": "silver",
+      "accountCreated": "2022-01-30",
+      "refundsLast12mo": 0,
+      "lifetimeValue": 1990.0,
+      "flags": [],
+      "scenario": "Approve with 15% restocking fee: opened, undamaged electronics (R5/R6). Good case to show the flaky-gateway retry. Multi-order account.",
+      "orders": [
+        {
+          "id": "O1006",
+          "date": "2026-05-28",
+          "deliveredDate": "2026-06-01",
+          "status": "delivered",
+          "total": 199.99,
+          "paymentMethod": "Visa ****2468",
+          "items": [
+            { "sku": "SKU-AUDIO-31", "name": "NoiseShield Pro Headphones", "category": "electronics", "price": 199.99, "quantity": 1, "condition": "opened" }
+          ]
+        },
+        {
+          "id": "O1019",
+          "date": "2026-06-07",
+          "deliveredDate": "2026-06-10",
+          "status": "delivered",
+          "total": 28.0,
+          "paymentMethod": "Visa ****2468",
+          "items": [
+            { "sku": "SKU-OUT-12", "name": "Stainless Water Bottle 24oz", "category": "accessory", "price": 28.0, "quantity": 1, "condition": "new" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "C007",
+      "name": "Grace Park",
+      "email": "grace.park@example.com",
+      "phone": "+1-415-555-0107",
+      "loyaltyTier": "gold",
+      "accountCreated": "2021-07-07",
+      "refundsLast12mo": 0,
+      "lifetimeValue": 3100.0,
+      "flags": [],
+      "scenario": "Digital goods (R4): one accessed license (deny), one unaccessed license (approve).",
+      "orders": [
+        {
+          "id": "O1007",
+          "date": "2026-06-06",
+          "deliveredDate": "2026-06-06",
+          "status": "delivered",
+          "total": 49.99,
+          "paymentMethod": "Visa ****5150",
+          "items": [
+            { "sku": "SKU-SOFT-09", "name": "PixelForge Photo Suite (License)", "category": "digital", "price": 49.99, "quantity": 1, "condition": "new", "digitalAccessed": true }
+          ]
+        },
+        {
+          "id": "O1008",
+          "date": "2026-06-09",
+          "deliveredDate": "2026-06-09",
+          "status": "delivered",
+          "total": 29.99,
+          "paymentMethod": "Visa ****5150",
+          "items": [
+            { "sku": "SKU-SOFT-12", "name": "TuneCraft Audio Plugin (License)", "category": "digital", "price": 29.99, "quantity": 1, "condition": "new", "digitalAccessed": false }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "C008",
+      "name": "Henry Adams",
+      "email": "henry.adams@example.com",
+      "phone": "+1-415-555-0108",
+      "loyaltyTier": "standard",
+      "accountCreated": "2024-03-03",
+      "refundsLast12mo": 0,
+      "lifetimeValue": 410.0,
+      "flags": [],
+      "scenario": "Not delivered yet (status shipped): offer cancellation, not a refund (R2).",
+      "orders": [
+        {
+          "id": "O1009",
+          "date": "2026-06-11",
+          "status": "shipped",
+          "total": 84.0,
+          "paymentMethod": "Mastercard ****9090",
+          "items": [
+            { "sku": "SKU-OUT-05", "name": "Summit Trail Backpack", "category": "accessory", "price": 84.0, "quantity": 1, "condition": "new" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "C009",
+      "name": "Ivy Robinson",
+      "email": "ivy.robinson@example.com",
+      "phone": "+1-415-555-0109",
+      "loyaltyTier": "silver",
+      "accountCreated": "2022-12-12",
+      "refundsLast12mo": 2,
+      "lifetimeValue": 760.0,
+      "flags": [],
+      "scenario": "Deny: order already refunded, no second refund (R2).",
+      "orders": [
+        {
+          "id": "O1010",
+          "date": "2026-05-20",
+          "deliveredDate": "2026-05-24",
+          "status": "refunded",
+          "total": 45.0,
+          "refundedAmount": 45.0,
+          "paymentMethod": "Visa ****3322",
+          "items": [
+            { "sku": "SKU-BEAU-03", "name": "GlowDrop Vitamin C Serum", "category": "beauty", "price": 45.0, "quantity": 1, "condition": "new" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "C010",
+      "name": "Jack Wilson",
+      "email": "jack.wilson@example.com",
+      "phone": "+1-415-555-0110",
+      "loyaltyTier": "standard",
+      "accountCreated": "2023-05-19",
+      "refundsLast12mo": 1,
+      "lifetimeValue": 620.0,
+      "flags": [],
+      "scenario": "Deny: perishable + consumable 70% used (R3/R7).",
+      "orders": [
+        {
+          "id": "O1011",
+          "date": "2026-06-04",
+          "deliveredDate": "2026-06-07",
+          "status": "delivered",
+          "total": 39.0,
+          "paymentMethod": "Visa ****6543",
+          "items": [
+            { "sku": "SKU-FOOD-02", "name": "Volcano Roast Coffee Beans 2lb", "category": "perishable", "price": 39.0, "quantity": 1, "condition": "opened", "finalSale": true, "usagePercent": 70 }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "C011",
+      "name": "Kara Davis",
+      "email": "kara.davis@example.com",
+      "phone": "+1-415-555-0111",
+      "loyaltyTier": "standard",
+      "accountCreated": "2024-01-01",
+      "refundsLast12mo": 0,
+      "lifetimeValue": 300.0,
+      "flags": [],
+      "scenario": "Deny: clearance item, final sale (R3).",
+      "orders": [
+        {
+          "id": "O1012",
+          "date": "2026-06-02",
+          "deliveredDate": "2026-06-06",
+          "status": "delivered",
+          "total": 24.99,
+          "paymentMethod": "Visa ****1212",
+          "items": [
+            { "sku": "SKU-CLR-19", "name": "Clearance Summer Tee", "category": "clearance", "price": 24.99, "quantity": 1, "condition": "new", "finalSale": true }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "C012",
+      "name": "Liam Brown",
+      "email": "liam.brown@example.com",
+      "phone": "+1-415-555-0112",
+      "loyaltyTier": "standard",
+      "accountCreated": "2023-10-10",
+      "refundsLast12mo": 0,
+      "lifetimeValue": 480.0,
+      "flags": [],
+      "scenario": "Deny: intimate apparel, non-refundable for hygiene (R3).",
+      "orders": [
+        {
+          "id": "O1013",
+          "date": "2026-06-03",
+          "deliveredDate": "2026-06-07",
+          "status": "delivered",
+          "total": 34.99,
+          "paymentMethod": "Visa ****8765",
+          "items": [
+            { "sku": "SKU-INT-04", "name": "Comfort Layer Base Top", "category": "intimate_apparel", "price": 34.99, "quantity": 1, "condition": "new" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "C013",
+      "name": "Mia Garcia",
+      "email": "mia.garcia@example.com",
+      "phone": "+1-415-555-0113",
+      "loyaltyTier": "gold",
+      "accountCreated": "2021-04-04",
+      "refundsLast12mo": 1,
+      "lifetimeValue": 2210.0,
+      "flags": [],
+      "scenario": "Approve full: defective item under $100, in window, no photo or fee needed (R5). Multi-order account.",
+      "orders": [
+        {
+          "id": "O1014",
+          "date": "2026-06-01",
+          "deliveredDate": "2026-06-05",
+          "status": "delivered",
+          "total": 60.0,
+          "paymentMethod": "Visa ****4433",
+          "items": [
+            { "sku": "SKU-HOME-21", "name": "Lumen LED Desk Lamp", "category": "home", "price": 60.0, "quantity": 1, "condition": "defective" }
+          ]
+        },
+        {
+          "id": "O1021",
+          "date": "2026-05-20",
+          "deliveredDate": "2026-05-24",
+          "status": "delivered",
+          "total": 42.0,
+          "paymentMethod": "Visa ****4433",
+          "items": [
+            { "sku": "SKU-HOME-30", "name": "Ceramic Mug Set (4pc)", "category": "home", "price": 42.0, "quantity": 1, "condition": "new" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "C014",
+      "name": "Noah Lee",
+      "email": "noah.lee@example.com",
+      "phone": "+1-415-555-0114",
+      "loyaltyTier": "standard",
+      "accountCreated": "2024-02-22",
+      "refundsLast12mo": 0,
+      "lifetimeValue": 350.0,
+      "flags": [],
+      "scenario": "Deny: damaged by the customer, not a defect (R5).",
+      "orders": [
+        {
+          "id": "O1015",
+          "date": "2026-05-29",
+          "deliveredDate": "2026-06-02",
+          "status": "delivered",
+          "total": 119.0,
+          "paymentMethod": "Visa ****9988",
+          "items": [
+            { "sku": "SKU-PHN-07", "name": "Northwind Phone Case + Screen Protector", "category": "accessory", "price": 119.0, "quantity": 1, "condition": "damaged_by_customer" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "C015",
+      "name": "Olivia Hall",
+      "email": "olivia.hall@example.com",
+      "phone": "+1-415-555-0115",
+      "loyaltyTier": "platinum",
+      "accountCreated": "2019-12-01",
+      "refundsLast12mo": 0,
+      "lifetimeValue": 12400.0,
+      "flags": [],
+      "scenario": "Loyal customer: one clean in-window approve, plus an older out-of-window order for exploration.",
+      "orders": [
+        {
+          "id": "O1016",
+          "date": "2026-06-04",
+          "deliveredDate": "2026-06-08",
+          "status": "delivered",
+          "total": 145.0,
+          "paymentMethod": "Amex ****0007",
+          "items": [
+            { "sku": "SKU-APRL-40", "name": "Heritage Wool Sweater", "category": "apparel", "price": 145.0, "quantity": 1, "condition": "new" }
+          ]
+        },
+        {
+          "id": "O1017",
+          "date": "2026-03-01",
+          "deliveredDate": "2026-03-05",
+          "status": "delivered",
+          "total": 220.0,
+          "paymentMethod": "Amex ****0007",
+          "items": [
+            { "sku": "SKU-HOME-55", "name": "Stoneware Dinner Set (16pc)", "category": "home", "price": 220.0, "quantity": 1, "condition": "new" }
+          ]
+        },
+        {
+          "id": "O1022",
+          "date": "2026-06-01",
+          "deliveredDate": "2026-06-05",
+          "status": "delivered",
+          "total": 95.0,
+          "paymentMethod": "Amex ****0007",
+          "items": [
+            { "sku": "SKU-HOME-62", "name": "Linen Throw Blanket", "category": "home", "price": 95.0, "quantity": 1, "condition": "new" }
+          ]
+        }
+      ]
+    }
+  ]
+}

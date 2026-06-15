@@ -1,0 +1,27 @@
+{
+  "name": "northwind-refund-agent",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "AI Customer Support Agent that processes or denies e-commerce refunds using Claude tool-calling, with a live agent-reasoning admin dashboard and an optional voice pipeline.",
+  "workspaces": [
+    "shared",
+    "server",
+    "web"
+  ],
+  "scripts": {
+    "dev": "concurrently -n server,web -c green,cyan \"npm:dev:server\" \"npm:dev:web\"",
+    "dev:server": "npm -w server run dev",
+    "dev:web": "npm -w web run dev",
+    "build": "npm -w web run build",
+    "start": "npm -w server run start",
+    "test": "npm -w server run test",
+    "typecheck": "npm -w server run typecheck && npm -w web run typecheck"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
