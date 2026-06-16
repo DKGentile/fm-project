@@ -5,6 +5,9 @@
 
 import { config } from './config.js';
 import { createApp } from './app.js';
+import { store } from './crm/store.js';
+
+await store.init();
 
 createApp().listen(config.port, () => {
   console.log(`\n  Northwind Refund Agent server`);

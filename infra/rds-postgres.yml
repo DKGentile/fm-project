@@ -1,0 +1,205 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Short-lived public RDS PostgreSQL stack for the Northwind Refund Agent demo.
+
+Parameters:
+  ProjectName:
+    Type: String
+    Default: northwind-refund-agent
+    AllowedPattern: '[a-zA-Z][a-zA-Z0-9-]*'
+  DBInstanceIdentifier:
+    Type: String
+    Default: northwind-refund-agent-crm
+    AllowedPattern: '[a-zA-Z][a-zA-Z0-9-]*'
+  DBName:
+    Type: String
+    Default: northwind
+    AllowedPattern: '[a-zA-Z][a-zA-Z0-9_]*'
+  MasterUsername:
+    Type: String
+    Default: northwind_admin
+    AllowedPattern: '[a-zA-Z][a-zA-Z0-9_]*'
+  AllowedCidr:
+    Type: String
+    Description: The only public CIDR allowed to connect to Postgres.
+    AllowedPattern: '([0-9]{1,3}\.){3}[0-9]{1,3}/[0-9]{1,2}'
+  DBInstanceClass:
+    Type: String
+    Default: db.t4g.micro
+  DBEngineVersion:
+    Type: String
+    Default: '17.10'
+  AllocatedStorage:
+    Type: Number
+    Default: 20
+    MinValue: 20
+    MaxValue: 100
+
+Resources:
+  Vpc:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.92.0.0/16
+      EnableDnsHostnames: true
+      EnableDnsSupport: true
+      Tags:
+        - Key: Name
+          Value: !Sub '${ProjectName}-vpc'
+
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: !Sub '${ProjectName}-igw'
+
+  VpcGatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      InternetGatewayId: !Ref InternetGateway
+      VpcId: !Ref Vpc
+
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref Vpc
+      Tags:
+        - Key: Name
+          Value: !Sub '${ProjectName}-public-rt'
+
+  PublicRoute:
+    Type: AWS::EC2::Route
+    DependsOn: VpcGatewayAttachment
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+
+  PublicSubnetA:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref Vpc
+      AvailabilityZone: !Select [0, !GetAZs '']
+      CidrBlock: 10.92.1.0/24
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: Name
+          Value: !Sub '${ProjectName}-public-a'
+
+  PublicSubnetB:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref Vpc
+      AvailabilityZone: !Select [1, !GetAZs '']
+      CidrBlock: 10.92.2.0/24
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: Name
+          Value: !Sub '${ProjectName}-public-b'
+
+  PublicSubnetARouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnetA
+      RouteTableId: !Ref PublicRouteTable
+
+  PublicSubnetBRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnetB
+      RouteTableId: !Ref PublicRouteTable
+
+  DBSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow short-lived Postgres access from one public IP only.
+      VpcId: !Ref Vpc
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 5432
+          ToPort: 5432
+          CidrIp: !Ref AllowedCidr
+          Description: Local developer Postgres access
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: Name
+          Value: !Sub '${ProjectName}-postgres-sg'
+
+  DBSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupDescription: Public subnets for the short-lived Northwind demo DB.
+      SubnetIds:
+        - !Ref PublicSubnetA
+        - !Ref PublicSubnetB
+      Tags:
+        - Key: Name
+          Value: !Sub '${ProjectName}-db-subnet-group'
+
+  MasterPasswordSecret:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Description: Master password for the short-lived Northwind demo RDS instance.
+      GenerateSecretString:
+        SecretStringTemplate: !Sub '{"username":"${MasterUsername}"}'
+        GenerateStringKey: password
+        PasswordLength: 32
+        ExcludeCharacters: '"@/\'
+      Tags:
+        - Key: Name
+          Value: !Sub '${ProjectName}-postgres-master-password'
+
+  CRMDatabase:
+    Type: AWS::RDS::DBInstance
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Delete
+    Properties:
+      DBInstanceIdentifier: !Ref DBInstanceIdentifier
+      DBName: !Ref DBName
+      Engine: postgres
+      EngineVersion: !Ref DBEngineVersion
+      DBInstanceClass: !Ref DBInstanceClass
+      AllocatedStorage: !Ref AllocatedStorage
+      StorageType: gp2
+      StorageEncrypted: true
+      MasterUsername: !Ref MasterUsername
+      MasterUserPassword: !Sub '{{resolve:secretsmanager:${MasterPasswordSecret}:SecretString:password}}'
+      DBSubnetGroupName: !Ref DBSubnetGroup
+      VPCSecurityGroups:
+        - !Ref DBSecurityGroup
+      PubliclyAccessible: true
+      MultiAZ: false
+      BackupRetentionPeriod: 0
+      DeleteAutomatedBackups: true
+      DeletionProtection: false
+      AutoMinorVersionUpgrade: true
+      CopyTagsToSnapshot: false
+      Port: 5432
+      Tags:
+        - Key: Name
+          Value: !Sub '${ProjectName}-crm-postgres'
+
+Outputs:
+  DBEndpointAddress:
+    Description: Public DNS endpoint for the RDS instance.
+    Value: !GetAtt CRMDatabase.Endpoint.Address
+  DBEndpointPort:
+    Description: RDS Postgres port.
+    Value: !GetAtt CRMDatabase.Endpoint.Port
+  DBName:
+    Description: Initial database name.
+    Value: !Ref DBName
+  MasterUsername:
+    Description: Master database username.
+    Value: !Ref MasterUsername
+  MasterPasswordSecretArn:
+    Description: Secrets Manager ARN containing the generated master password.
+    Value: !Ref MasterPasswordSecret
+  SecurityGroupId:
+    Description: Security group limiting inbound Postgres access.
+    Value: !Ref DBSecurityGroup
+  VpcId:
+    Description: Dedicated VPC created for the short-lived demo DB.
+    Value: !Ref Vpc
+

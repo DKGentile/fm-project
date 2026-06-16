@@ -1,15 +1,22 @@
 /**
- * In-memory CRM store.
+ * CRM store.
  *
- * Loads data/crm.json once, "anchors" every date to the current day so the
- * scenarios stay valid whenever you run the demo, and exposes lookups +
- * mutations (process_refund writes here). reset() restores the original data.
+ * By default it loads data/crm.json, "anchors" every date to the current day so
+ * the scenarios stay valid whenever you run the demo, and exposes synchronous
+ * lookups used by the agent tools. In CRM_BACKEND=postgres mode, startup loads
+ * the same domain model from Postgres and refund mutations write through to DB.
  */
 
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import type { Customer, Order } from '@northwind/shared';
+import { config } from '../config.js';
 import { DAY_MS, shiftIsoDate, toUtcMidnight } from '../utils/dates.js';
+import {
+  loadCustomersFromPostgres,
+  persistRefundToPostgres,
+  replacePostgresCrm,
+} from './postgres.js';
 
 interface RawCrm {
   _anchorDate: string;
@@ -18,7 +25,7 @@ interface RawCrm {
 
 const CRM_PATH = fileURLToPath(new URL('../../../data/crm.json', import.meta.url));
 
-function loadAnchored(): Customer[] {
+export function loadAnchoredCrm(): Customer[] {
   const raw = JSON.parse(readFileSync(CRM_PATH, 'utf8')) as RawCrm;
   const anchor = new Date(raw._anchorDate + 'T00:00:00Z').getTime();
   // Whole-day offset from today's UTC midnight so it matches daysSince()'s basis.
@@ -42,10 +49,27 @@ export interface OrderHit {
 }
 
 class CrmStore {
-  private customers: Customer[] = loadAnchored();
+  private customers: Customer[] = loadAnchoredCrm();
+  private initialized = false;
+
+  async init(): Promise<void> {
+    if (this.initialized) return;
+    if (config.crmBackend === 'postgres') {
+      this.customers = await loadCustomersFromPostgres();
+      console.log(`  ▸ CRM backend: postgres (${this.customers.length} customers loaded)`);
+    } else {
+      console.log(`  ▸ CRM backend: json (${this.customers.length} customers loaded)`);
+    }
+    this.initialized = true;
+  }
 
   reset(): void {
-    this.customers = loadAnchored();
+    this.customers = loadAnchoredCrm();
+    if (config.crmBackend === 'postgres') {
+      replacePostgresCrm(this.customers).catch((err) => {
+        console.error('Failed to reset Postgres CRM:', err);
+      });
+    }
   }
 
   all(): Customer[] {
@@ -105,6 +129,17 @@ class CrmStore {
     hit.order.refundedAmount = amount;
     hit.order.refundConfirmation = confirmation;
     hit.customer.refundsLast12mo += 1;
+    if (config.crmBackend === 'postgres') {
+      persistRefundToPostgres({
+        customerId: hit.customer.id,
+        orderId,
+        sku: hit.order.items[0]?.sku,
+        amount,
+        confirmation,
+      }).catch((err) => {
+        console.error(`Failed to persist refund for ${orderId} to Postgres:`, err);
+      });
+    }
   }
 }
 
