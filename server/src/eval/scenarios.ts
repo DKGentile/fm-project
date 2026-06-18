@@ -1,20 +1,9 @@
-/**
- * Policy eval scenarios. Each runs ONE real agent turn against a demo customer
- * and checks that Aria reaches the policy-correct *decision* (which terminal
- * tool she reaches for) — including adversarial prompts that try to talk her
- * past the rules. Expected outcomes come from the deterministic policy engine.
- *
- * It stops at the decision (request_refund_confirmation = "would approve"), so
- * no refund is ever processed — the eval is read-only and safe to re-run live.
- */
-
 import type { EvalOutcome } from '@demitri/shared';
 
 export interface EvalScenario {
   id: string;
   email: string;
   message: string;
-  /** Acceptable policy-correct outcomes (usually one). */
   accept: EvalOutcome[];
   category: 'policy' | 'adversarial';
   rule: string;

@@ -4,7 +4,7 @@ An AI customer-support agent that **processes or denies e-commerce refunds** by 
 
 > Built for the "AI Customer Support Agent" challenge. The agent doesn't just answer — it looks up the order, validates it against ~12 numbered policy rules using tools, then **holds the line** on violations, escalates the edge cases, and recovers from gateway/API failures with visible retries.
 
-- 🎥 **Loom walkthrough:** _<add your Loom link here>_
+- 🎥 **Loom walkthrough:** https://www.loom.com/share/74dcccf92308405bab0fcae30e2a3456
 
 ---
 
@@ -225,15 +225,15 @@ fm-project/
 | `PORT`                | `8787`            | API port                                                             |
 | `CRM_BACKEND`         | `json`            | `json` (in-memory demo data) or `postgres` (live per-request reads)  |
 | `DATABASE_URL`        | —                 | Postgres connection string; **required** when `CRM_BACKEND=postgres` |
-| `PG_CA_BUNDLE`        | —                 | path to a CA bundle (e.g. the AWS RDS root CA) for *verified* TLS     |
-| `PG_TLS_INSECURE`     | `false`           | `true` encrypts but skips Postgres TLS cert verification (demo only)  |
+| `PG_CA_BUNDLE`        | —                 | path to a CA bundle (e.g. the AWS RDS root CA) for _verified_ TLS    |
+| `PG_TLS_INSECURE`     | `false`           | `true` encrypts but skips Postgres TLS cert verification (demo only) |
 
 ---
 
 ## Design notes
 
 - **Pluggable CRM backend**: the agent's tools talk to an async repository (`crm/store.ts`) backed by either in-memory JSON (default, zero-infra) or live Postgres (`CRM_BACKEND=postgres`). In Postgres mode every tool call — lookup, ownership check, refund — runs a scoped query against the live database, and refunds are written back **transactionally and idempotently** (an already-refunded order is a no-op, so a retry can't double-refund). Switching backends needs no code changes.
-- **Dates are anchored**: `crm.json` carries an `_anchorDate`; both backends shift every date onto today *at read time* so "delivered 10 days ago" stays 10 days ago whenever you run it — the scenarios never go stale. (Postgres stores the raw anchor-relative dates and re-anchors on read, so the same evergreen behavior holds without re-seeding daily.)
+- **Dates are anchored**: `crm.json` carries an `_anchorDate`; both backends shift every date onto today _at read time_ so "delivered 10 days ago" stays 10 days ago whenever you run it — the scenarios never go stale. (Postgres stores the raw anchor-relative dates and re-anchors on read, so the same evergreen behavior holds without re-seeding daily.)
 - **Thinking is streamed** (`display: "summarized"`) so the admin timeline shows Aria's actual reasoning, not just the final answer.
 - **One coherent event model** powers both the customer "activity" strip and the admin timeline — they're two views of the same `AgentEvent` stream.
 

@@ -161,9 +161,6 @@ async function requestRefundConfirmation(input: Input, ctx: ToolContext): Promis
     };
   }
 
-  // Record the confirmation request. Only the FIRST request this session marks
-  // the order as "asked this turn" (so re-confirming on the customer's yes-turn
-  // doesn't re-block processing).
   if (!ctx.sessionConfirmations.has(hit.order.id)) {
     ctx.confirmRequestedThisTurn.add(hit.order.id);
   }

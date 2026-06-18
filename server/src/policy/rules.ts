@@ -1,9 +1,5 @@
 /**
  * Refund policy rules — pure, side-effect-free validators.
- *
- * Keeping the rules here (not in the prompt) makes enforcement deterministic and
- * auditable, and lets us unit-test them independently of the LLM (rules.test.ts).
- * Each function maps to one or more numbered rules in data/refund-policy.md.
  */
 
 import type { Customer, Order, OrderItem } from '@demitri/shared';
@@ -17,7 +13,6 @@ export interface ReturnWindowResult {
   daysSinceDelivery: number | null;
   windowDays: number;
   status: Order['status'];
-  /** True if the order is in a state that can be refunded at all (R2). */
   refundableStatus: boolean;
   note: string;
   policyRefs: string[];
