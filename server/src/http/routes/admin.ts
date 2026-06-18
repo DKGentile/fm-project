@@ -33,9 +33,13 @@ adminRouter.get('/state', (_req, res) => res.json(getAdminState()));
 
 adminRouter.get('/session/:id', (req, res) => res.json(getSessionEvents(req.params.id)));
 
-adminRouter.post('/reset', (_req, res) => {
-  store.reset();
-  resetGateway();
-  clearSessions();
-  res.json({ ok: true });
+adminRouter.post('/reset', async (_req, res) => {
+  try {
+    await store.reset();
+    resetGateway();
+    clearSessions();
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err instanceof Error ? err.message : String(err) });
+  }
 });

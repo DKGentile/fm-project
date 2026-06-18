@@ -1,4 +1,12 @@
-import type { AdminState, AgentEvent, AppConfig, Customer } from '@northwind/shared';
+import type {
+  AdminState,
+  AgentEvent,
+  AppConfig,
+  ChatHistoryItem,
+  ChatTranscript,
+  Customer,
+  Order,
+} from '@northwind/shared';
 
 export async function getConfig(): Promise<AppConfig> {
   const res = await fetch('/api/config');
@@ -52,7 +60,8 @@ export async function streamChat(
   });
   if (res.status === 401) throw new UnauthorizedError();
   if (!res.ok || !res.body) {
-    throw new Error(`Chat request failed (${res.status}).`);
+    const body = (await res.json().catch(() => null)) as { error?: string } | null;
+    throw new Error(body?.error ?? `Chat request failed (${res.status}).`);
   }
 
   const reader = res.body.getReader();
@@ -72,14 +81,47 @@ export async function streamChat(
         if (!line.startsWith('data:')) continue;
         const json = line.slice(5).trim();
         if (!json) continue;
+        let event: AgentEvent;
         try {
-          onEvent(JSON.parse(json) as AgentEvent);
+          event = JSON.parse(json) as AgentEvent;
         } catch {
-          /* ignore malformed frame */
+          continue; // skip a genuinely malformed frame
+        }
+        // Don't swallow handler errors — that previously masked a render bug.
+        try {
+          onEvent(event);
+        } catch (err) {
+          console.error('chat event handler error:', err);
         }
       }
     }
   }
+}
+
+/** The signed-in customer's orders, for the in-chat order picker. */
+export async function getMyOrders(token: string): Promise<Order[]> {
+  const res = await fetch('/api/chat/orders', { headers: { Authorization: `Bearer ${token}` } });
+  if (res.status === 401) throw new UnauthorizedError(); // stale session — prompt re-login
+  if (!res.ok) return [];
+  const data = (await res.json()) as { orders: Order[] };
+  return data.orders;
+}
+
+/** The signed-in customer's own past conversations (newest first). */
+export async function getChatHistory(token: string): Promise<ChatHistoryItem[]> {
+  const res = await fetch('/api/chat/history', { headers: { Authorization: `Bearer ${token}` } });
+  if (!res.ok) return [];
+  const data = (await res.json()) as { chats: ChatHistoryItem[] };
+  return data.chats;
+}
+
+/** The reconstructed transcript of one past chat (404 if not owned). */
+export async function getChatTranscript(token: string, id: string): Promise<ChatTranscript | null> {
+  const res = await fetch(`/api/chat/history/${encodeURIComponent(id)}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) return null;
+  return (await res.json()) as ChatTranscript;
 }
 
 /** Subscribe to the global admin event stream. Returns an unsubscribe fn. */

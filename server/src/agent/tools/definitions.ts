@@ -72,9 +72,22 @@ export const TOOLS: Anthropic.Tool[] = [
     },
   },
   {
+    name: 'request_refund_confirmation',
+    description:
+      "Show the customer a confirmation prompt for an eligible refund (the exact item + amount) and ask them to confirm BEFORE any money moves. Call this once you've verified the item is eligible, then STOP and wait for the customer to confirm — do NOT call process_refund in the same turn. It re-validates policy and refuses if the item isn't actually eligible (so confirm only what's truly refundable).",
+    input_schema: {
+      type: 'object',
+      properties: {
+        orderId: { type: 'string' },
+        sku: { type: 'string', description: 'Optional if the order has a single item.' },
+      },
+      required: ['orderId'],
+    },
+  },
+  {
     name: 'process_refund',
     description:
-      'Issue a refund to the original payment method. The amount is computed server-side from policy — you do not pass it. This tool re-validates ALL policy rules and will refuse if the item is not eligible, requires manager approval, or requires photo evidence. Only call this once you have verified eligibility with the check_* tools.',
+      'Issue a refund to the original payment method. Call this ONLY after the customer has explicitly confirmed via request_refund_confirmation. The amount is computed server-side from policy — you do not pass it. This tool re-validates ALL policy rules and will refuse if the item is not eligible, requires manager approval, or requires photo evidence.',
     input_schema: {
       type: 'object',
       properties: {

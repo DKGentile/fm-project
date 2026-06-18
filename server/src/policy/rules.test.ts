@@ -4,10 +4,11 @@
  *   run with:  npm test
  */
 
+import '../testSetup.js'; // must be first — forces the hermetic JSON backend
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import type { Order, OrderItem } from '@northwind/shared';
-import { store } from '../crm/store.js';
+import { loadAnchoredCrm } from '../crm/anchor.js';
 import {
   checkCustomerStanding,
   checkHighValue,
@@ -16,10 +17,25 @@ import {
 } from './rules.js';
 import { calculateRefund } from './refund.js';
 
+// Pure policy tests run synchronously against the anchored dataset (no async repo).
+const CRM = loadAnchoredCrm();
+
 function order(id: string) {
-  const hit = store.findOrder(id);
-  assert.ok(hit, `order ${id} should exist`);
-  return hit!.order;
+  for (const c of CRM) {
+    const o = c.orders.find((x) => x.id === id);
+    if (o) return o;
+  }
+  return assert.fail(`order ${id} should exist`);
+}
+
+function findCustomer(query: string) {
+  const q = query.toLowerCase();
+  return CRM.find(
+    (c) =>
+      c.id.toLowerCase() === q ||
+      c.email.toLowerCase() === q ||
+      c.orders.some((o) => o.id.toLowerCase() === q),
+  );
 }
 function item(id: string) {
   const o = order(id);
@@ -128,7 +144,7 @@ test('R9 — order under $500 does not require manager approval (O1001)', () => 
 });
 
 test('R10 — customer over the refund-abuse threshold must be escalated (Eve)', () => {
-  const eve = store.findCustomer('eve.thompson@example.com');
+  const eve = findCustomer('eve.thompson@example.com');
   assert.ok(eve);
   const s = checkCustomerStanding(eve!);
   assert.equal(s.overThreshold, true);
@@ -136,14 +152,14 @@ test('R10 — customer over the refund-abuse threshold must be escalated (Eve)',
 });
 
 test('R10 — customer within limits does not require escalation (Alice)', () => {
-  const alice = store.findCustomer('alice.nguyen@example.com');
+  const alice = findCustomer('alice.nguyen@example.com');
   assert.ok(alice);
   assert.equal(checkCustomerStanding(alice!).requiresManager, false);
 });
 
 test('store — fuzzy lookup finds customer by order id and email', () => {
-  assert.equal(store.findCustomer('O1004')?.name, 'David Okafor');
-  assert.equal(store.findCustomer('frank.li@example.com')?.id, 'C006');
+  assert.equal(findCustomer('O1004')?.name, 'David Okafor');
+  assert.equal(findCustomer('frank.li@example.com')?.id, 'C006');
 });
 
 // ── regression tests for issues surfaced by the adversarial review ──

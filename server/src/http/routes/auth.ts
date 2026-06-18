@@ -12,10 +12,10 @@ import { getBearerToken } from '../bearer.js';
 
 export const authRouter = Router();
 
-authRouter.post('/login', (req: Request, res: Response) => {
+authRouter.post('/login', async (req: Request, res: Response) => {
   const email = String(req.body?.email ?? '').trim();
   const password = String(req.body?.password ?? '');
-  const result = login(email, password);
+  const result = await login(email, password);
   if (!result) {
     res.status(401).json({ error: 'Invalid email or password.' });
     return;
@@ -30,9 +30,10 @@ authRouter.post('/logout', (req: Request, res: Response) => {
 
 // Demo convenience only — lets the login screen list the test accounts. A real
 // app would never expose its customer directory like this.
-authRouter.get('/demo-accounts', (_req, res) => {
+authRouter.get('/demo-accounts', async (_req, res) => {
+  const customers = await store.all();
   res.json({
-    accounts: store.all().map((c) => ({
+    accounts: customers.map((c) => ({
       id: c.id,
       name: c.name,
       email: c.email,

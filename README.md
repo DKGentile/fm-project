@@ -191,7 +191,11 @@ fm-project/
 │  │  ├─ rules.ts              R1–R10 validators   · rules.test.ts (23 tests)
 │  │  ├─ refund.ts             R6/R11 amount math  · constants.ts · policyDocument.ts
 │  ├─ auth/                    login + bearer tokens   · auth.test.ts (6 tests)
-│  ├─ crm/store.ts             in-memory CRM + date anchoring + account scoping
+│  ├─ crm/                     CRM repository — one async interface, two backends
+│  │  ├─ store.ts              JSON (in-memory) + Postgres backends · account scoping
+│  │  ├─ postgres.ts           live per-request queries + transactional refund write
+│  │  ├─ anchor.ts             date anchoring shared by both backends
+│  │  └─ seedPostgres.ts       one-off: seed Postgres from crm.json (raw dates)
 │  ├─ payments/gateway.ts      simulated (flaky) payment gateway
 │  ├─ events/                  sessionStore · eventBus · metrics
 │  ├─ http/routes/             auth · chat · admin · meta · voice
@@ -219,11 +223,37 @@ fm-project/
 | `ELEVENLABS_API_KEY`  | —                 | optional; enables ElevenLabs TTS                                     |
 | `ELEVENLABS_VOICE_ID` | Rachel            | any ElevenLabs voice ID                                              |
 | `PORT`                | `8787`            | API port                                                             |
+| `CRM_BACKEND`         | `json`            | `json` (in-memory demo data) or `postgres` (live per-request reads)  |
+| `DATABASE_URL`        | —                 | Postgres connection string; **required** when `CRM_BACKEND=postgres` |
+| `PG_CA_BUNDLE`        | —                 | path to a CA bundle (e.g. the AWS RDS root CA) for *verified* TLS     |
+| `PG_TLS_INSECURE`     | `false`           | `true` encrypts but skips Postgres TLS cert verification (demo only)  |
 
 ---
 
 ## Design notes
 
-- **Dates are anchored**: `crm.json` carries an `_anchorDate`; the store shifts every date so "delivered 10 days ago" stays 10 days ago whenever you run it — the scenarios never go stale.
+- **Pluggable CRM backend**: the agent's tools talk to an async repository (`crm/store.ts`) backed by either in-memory JSON (default, zero-infra) or live Postgres (`CRM_BACKEND=postgres`). In Postgres mode every tool call — lookup, ownership check, refund — runs a scoped query against the live database, and refunds are written back **transactionally and idempotently** (an already-refunded order is a no-op, so a retry can't double-refund). Switching backends needs no code changes.
+- **Dates are anchored**: `crm.json` carries an `_anchorDate`; both backends shift every date onto today *at read time* so "delivered 10 days ago" stays 10 days ago whenever you run it — the scenarios never go stale. (Postgres stores the raw anchor-relative dates and re-anchors on read, so the same evergreen behavior holds without re-seeding daily.)
 - **Thinking is streamed** (`display: "summarized"`) so the admin timeline shows Aria's actual reasoning, not just the final answer.
 - **One coherent event model** powers both the customer "activity" strip and the admin timeline — they're two views of the same `AgentEvent` stream.
+
+---
+
+## Postgres backend (optional)
+
+By default the app runs entirely in-memory (`CRM_BACKEND=json`) — no database needed. To run the agent against a live Postgres (e.g. AWS RDS):
+
+```bash
+# 1. create the schema (psql against your database)
+psql "$DATABASE_URL" -f db/schema.sql
+
+# 2. seed it from data/crm.json  (stores RAW anchor-relative dates)
+CRM_BACKEND=postgres DATABASE_URL=postgresql://… npm -w server run seed:postgres
+
+# 3. run with the Postgres backend
+CRM_BACKEND=postgres DATABASE_URL=postgresql://… npm run dev
+```
+
+- **Live reads**: each agent tool call queries Postgres for just the relevant customer + orders, then re-anchors the demo dates onto today — so the database is the system of record, not a boot-time snapshot.
+- **TLS** follows libpq `sslmode` semantics: `require` encrypts without verifying the chain (a normal RDS URL connects out of the box); `verify-full` + `PG_CA_BUNDLE` (the AWS RDS root CA) is the production-correct verified path; `PG_TLS_INSECURE=true` is an explicit escape hatch for a throwaway demo. Unit tests always run on the in-memory backend, so they never need a database.
+- **Re-seeding** is only needed once after first creating the schema (or to reset the demo); because dates are stored raw and anchored on read, you don't re-seed as time passes.

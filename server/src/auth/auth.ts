@@ -30,9 +30,9 @@ export interface LoginResult {
   customer: PublicCustomer;
 }
 
-export function login(email: string, password: string): LoginResult | null {
+export async function login(email: string, password: string): Promise<LoginResult | null> {
   if (password !== DEMO_PASSWORD) return null;
-  const customer = store.findByEmail(email);
+  const customer = await store.findByEmail(email);
   if (!customer) return null;
 
   const token = randomUUID();

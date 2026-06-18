@@ -43,3 +43,28 @@ export interface AppConfig {
   voiceProvider: 'elevenlabs' | 'browser';
   flakyGateway: boolean;
 }
+
+/** A past conversation in the signed-in customer's own history list. */
+export interface ChatHistoryItem {
+  id: string;
+  title: string;
+  channel: Channel;
+  startedAt: number;
+  lastActivity: number;
+  messageCount: number;
+  decisions: DecisionOutcome[];
+}
+
+export interface ChatTranscriptMessage {
+  role: 'user' | 'assistant';
+  text: string;
+}
+
+/** The reconstructed conversation for one past chat (customer view). */
+export interface ChatTranscript {
+  id: string;
+  title: string;
+  channel: Channel;
+  startedAt: number;
+  messages: ChatTranscriptMessage[];
+}

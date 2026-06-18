@@ -41,6 +41,10 @@ BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'refund_status') THEN
     CREATE TYPE refund_status AS ENUM ('requested', 'approved', 'denied', 'escalated', 'processed', 'failed');
   END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'claim_status') THEN
+    CREATE TYPE claim_status AS ENUM ('open', 'info_requested', 'approved', 'denied', 'escalated', 'closed');
+  END IF;
 END $$;
 
 CREATE TABLE IF NOT EXISTS customers (
@@ -65,8 +69,8 @@ CREATE TABLE IF NOT EXISTS payment_methods (
   vault_token text NOT NULL UNIQUE,
   brand text NOT NULL,
   last4 char(4) NOT NULL CHECK (last4 ~ '^[0-9]{4}$'),
-  exp_month integer CHECK (exp_month BETWEEN 1 AND 12),
-  exp_year integer CHECK (exp_year BETWEEN 2024 AND 2100),
+  exp_month integer NOT NULL CHECK (exp_month BETWEEN 1 AND 12),
+  exp_year integer NOT NULL CHECK (exp_year BETWEEN 2024 AND 2100),
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
 );
@@ -79,7 +83,6 @@ CREATE TABLE IF NOT EXISTS orders (
   delivered_date date,
   status order_status NOT NULL,
   total_cents integer NOT NULL CHECK (total_cents >= 0),
-  photo_evidence_provided boolean NOT NULL DEFAULT false,
   refunded_amount_cents integer CHECK (refunded_amount_cents IS NULL OR refunded_amount_cents >= 0),
   refund_confirmation text,
   created_at timestamptz NOT NULL DEFAULT now(),
@@ -107,8 +110,23 @@ CREATE TABLE IF NOT EXISTS order_items (
   UNIQUE (order_id, sku)
 );
 
+CREATE TABLE IF NOT EXISTS refund_claims (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  customer_id text NOT NULL REFERENCES customers(id),
+  order_id text NOT NULL REFERENCES orders(id),
+  order_item_id bigint REFERENCES order_items(id),
+  status claim_status NOT NULL DEFAULT 'open',
+  claim_reason text,
+  photo_evidence_required boolean NOT NULL DEFAULT false,
+  photo_evidence_provided boolean NOT NULL DEFAULT false,
+  policy_refs text[] NOT NULL DEFAULT '{}',
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+
 CREATE TABLE IF NOT EXISTS refunds (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  claim_id uuid REFERENCES refund_claims(id),
   customer_id text NOT NULL REFERENCES customers(id),
   order_id text NOT NULL REFERENCES orders(id),
   order_item_id bigint REFERENCES order_items(id),
@@ -130,6 +148,8 @@ CREATE INDEX IF NOT EXISTS idx_orders_customer_id ON orders(customer_id);
 CREATE INDEX IF NOT EXISTS idx_orders_status ON orders(status);
 CREATE INDEX IF NOT EXISTS idx_order_items_order_id ON order_items(order_id);
 CREATE INDEX IF NOT EXISTS idx_order_items_sku ON order_items(sku);
+CREATE INDEX IF NOT EXISTS idx_refund_claims_customer_id ON refund_claims(customer_id);
+CREATE INDEX IF NOT EXISTS idx_refund_claims_order_id ON refund_claims(order_id);
 CREATE INDEX IF NOT EXISTS idx_refunds_customer_id ON refunds(customer_id);
 CREATE INDEX IF NOT EXISTS idx_refunds_order_id ON refunds(order_id);
 CREATE INDEX IF NOT EXISTS idx_payment_methods_customer_id ON payment_methods(customer_id);
@@ -162,7 +182,29 @@ CREATE TRIGGER touch_order_items_updated_at
 BEFORE UPDATE ON order_items
 FOR EACH ROW EXECUTE FUNCTION touch_updated_at();
 
+DROP TRIGGER IF EXISTS touch_refund_claims_updated_at ON refund_claims;
+CREATE TRIGGER touch_refund_claims_updated_at
+BEFORE UPDATE ON refund_claims
+FOR EACH ROW EXECUTE FUNCTION touch_updated_at();
+
 DROP TRIGGER IF EXISTS touch_refunds_updated_at ON refunds;
 CREATE TRIGGER touch_refunds_updated_at
 BEFORE UPDATE ON refunds
 FOR EACH ROW EXECUTE FUNCTION touch_updated_at();
+
+COMMENT ON COLUMN customers.lifetime_value_cents IS
+  'Integer minor units avoid floating-point rounding bugs in money math.';
+COMMENT ON COLUMN orders.total_cents IS
+  'Integer minor units avoid floating-point rounding bugs in money math.';
+COMMENT ON COLUMN order_items.unit_price_cents IS
+  'Snapshot of the purchased unit price in integer minor units.';
+COMMENT ON TABLE refund_claims IS
+  'Customer refund/return request state, separate from the original order transaction.';
+COMMENT ON COLUMN refund_claims.photo_evidence_provided IS
+  'R8 evidence flag. A production version would point to uploaded evidence objects.';
+COMMENT ON COLUMN payment_methods.vault_token IS
+  'Mock payment-processor vault token. Raw card numbers/CVV are never stored.';
+COMMENT ON COLUMN payment_methods.exp_month IS
+  'Seeded payment-method expiration metadata. Real refunds usually rely on processor vault tokens, not raw card validity checks.';
+COMMENT ON COLUMN payment_methods.exp_year IS
+  'Seeded payment-method expiration metadata. Real refunds usually rely on processor vault tokens, not raw card validity checks.';

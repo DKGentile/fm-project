@@ -21,6 +21,6 @@ metaRouter.get('/config', (_req, res) => {
   });
 });
 
-metaRouter.get('/crm', (_req, res) => res.json({ customers: store.all() }));
+metaRouter.get('/crm', async (_req, res) => res.json({ customers: await store.all() }));
 
 metaRouter.get('/policy', (_req, res) => res.type('text/markdown').send(POLICY_MARKDOWN));

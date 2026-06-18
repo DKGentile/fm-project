@@ -4,9 +4,15 @@
  * Keeps ChatPanel purely presentational.
  */
 
-import { useCallback, useRef, useState } from 'react';
-import type { AgentEvent, AppConfig, DecisionOutcome } from '@northwind/shared';
-import { streamChat, UnauthorizedError } from '../lib/api';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import type { AgentEvent, AppConfig, ChatHistoryItem, DecisionOutcome, Order } from '@northwind/shared';
+import {
+  getChatHistory,
+  getChatTranscript,
+  getMyOrders,
+  streamChat,
+  UnauthorizedError,
+} from '../lib/api';
 import { newId } from '../lib/ids';
 import type { AuthSession } from './useAuth';
 import {
@@ -17,10 +23,24 @@ import {
   type Recognizer,
 } from '../lib/voice';
 
+export interface ConfirmDetails {
+  orderId: string;
+  sku?: string;
+  item: string;
+  amount: number;
+  method: string;
+}
+
 export interface ChatMessage {
   id: string;
   role: 'user' | 'assistant';
   text: string;
+  /** 'orders' / 'confirm' render interactive cards instead of plain text. */
+  kind?: 'text' | 'orders' | 'confirm';
+  orders?: Order[];
+  confirm?: ConfirmDetails;
+  /** A confirm card's locked outcome — once set, the card is read-only. */
+  resolved?: 'yes' | 'no' | 'dismissed';
 }
 
 export interface ToolActivity {
@@ -49,6 +69,7 @@ export function useChat(
   const [activity, setActivity] = useState<TurnActivity | null>(null);
   const [voiceOn, setVoiceOn] = useState(false);
   const [listening, setListening] = useState(false);
+  const [history, setHistory] = useState<ChatHistoryItem[]>([]);
 
   const bubbleIdRef = useRef<string | null>(null);
   const lastReplyRef = useRef('');
@@ -60,6 +81,8 @@ export function useChat(
   configRef.current = config;
   // Synchronous re-entrancy guard (immune to stale state in voice-triggered sends).
   const pendingRef = useRef(false);
+  // A pending refund confirmation captured mid-turn; rendered as a card at turn end.
+  const pendingConfirmRef = useRef<ConfirmDetails | null>(null);
   // Keep a handle on the live recognizer so it can be stopped / not double-started.
   const recognizerRef = useRef<Recognizer | null>(null);
   // Abort the in-flight stream when the conversation is reset mid-turn.
@@ -100,7 +123,23 @@ export function useChat(
           a ? { ...a, tools: [...a.tools, { id: e.toolUseId, tool: e.tool, status: 'running' }] } : a,
         );
         break;
-      case 'tool_result':
+      case 'tool_result': {
+        // Capture a refund-confirmation request; we render it as a card once the
+        // turn's text has settled (see send()'s reconcile step).
+        if (e.tool === 'request_refund_confirmation' && !e.isError) {
+          const o = e.output as
+            | { confirmationRequired?: boolean; orderId?: string; sku?: string; item?: string; refundAmount?: number; method?: string }
+            | null;
+          if (o?.confirmationRequired) {
+            pendingConfirmRef.current = {
+              orderId: o.orderId ?? '',
+              sku: o.sku,
+              item: o.item ?? 'this item',
+              amount: o.refundAmount ?? 0,
+              method: o.method ?? 'your payment method',
+            };
+          }
+        }
         setActivity((a) =>
           a
             ? {
@@ -112,6 +151,7 @@ export function useChat(
             : a,
         );
         break;
+      }
       case 'tool_retry':
       case 'api_retry':
         setActivity((a) => (a ? { ...a, retries: a.retries + 1 } : a));
@@ -129,6 +169,24 @@ export function useChat(
     }
   }, []);
 
+  // Load the customer's past chats (and refresh after each turn so the current
+  // one appears / moves to the top). Scoped server-side to the logged-in account.
+  const refreshHistory = useCallback(async () => {
+    if (!auth) {
+      setHistory([]);
+      return;
+    }
+    try {
+      setHistory(await getChatHistory(auth.token));
+    } catch {
+      /* non-critical; leave the existing list */
+    }
+  }, [auth]);
+
+  useEffect(() => {
+    void refreshHistory();
+  }, [refreshHistory]);
+
   const send = useCallback(
     async (text: string, channel: 'chat' | 'voice' = 'chat') => {
       const trimmed = text.trim();
@@ -143,11 +201,17 @@ export function useChat(
 
       stopSpeaking();
       setInput('');
+      // Starting a new turn supersedes any still-open confirm card — lock it so a
+      // stale "Yes, refund it" button can't fire a refund the customer moved on from.
+      setMessages((prev) =>
+        prev.map((m) => (m.kind === 'confirm' && !m.resolved ? { ...m, resolved: 'dismissed' } : m)),
+      );
       setMessages((prev) => [...prev, { id: newId(), role: 'user', text: trimmed }]);
       setActivity({ tools: [], decisions: [], retries: 0, reasoning: false });
       setPending(true);
       bubbleIdRef.current = null;
       lastReplyRef.current = '';
+      pendingConfirmRef.current = null;
       try {
         await streamChat(
           { sessionId, message: trimmed, channel, token: auth.token },
@@ -169,15 +233,51 @@ export function useChat(
         }));
       } finally {
         if (!controller.signal.aborted) {
+          // Reconcile replies from the server's recorded transcript (the same
+          // path history uses, which is known to render) BEFORE we clear the
+          // activity box — so the reply is on screen the instant the box
+          // disappears. Appends any assistant message that didn't make it into a
+          // live bubble, deduped by text.
+          if (auth) {
+            try {
+              const t = await getChatTranscript(auth.token, sessionId);
+              if (t && !controller.signal.aborted) {
+                setMessages((prev) => {
+                  const shown = new Set(
+                    prev.filter((m) => m.role === 'assistant' && !m.kind).map((m) => m.text),
+                  );
+                  const missing = t.messages
+                    .filter((m) => m.role === 'assistant' && !shown.has(m.text))
+                    .map((m) => ({ id: newId(), role: 'assistant' as const, text: m.text }));
+                  return missing.length ? [...prev, ...missing] : prev;
+                });
+                const lastReply = t.messages.filter((m) => m.role === 'assistant').pop();
+                if (lastReply) lastReplyRef.current = lastReply.text;
+              }
+            } catch {
+              /* best-effort reconcile */
+            }
+          }
+          // If Aria asked to confirm a refund this turn, render the confirm card
+          // now — after her text, before the activity box is cleared.
+          if (pendingConfirmRef.current) {
+            const confirm = pendingConfirmRef.current;
+            pendingConfirmRef.current = null;
+            setMessages((prev) => [
+              ...prev,
+              { id: newId(), role: 'assistant', kind: 'confirm', text: '', confirm },
+            ]);
+          }
           pendingRef.current = false;
-          setPending(false);
+          setPending(false); // drop the activity box now that the reply is shown
           if (voiceOnRef.current && lastReplyRef.current && configRef.current) {
             void speak(lastReplyRef.current, configRef.current.voiceProvider);
           }
+          void refreshHistory(); // surface the just-created / updated chat
         }
       }
     },
-    [sessionId, handleEvent, auth, onUnauthorized],
+    [sessionId, handleEvent, auth, onUnauthorized, refreshHistory],
   );
 
   const startListening = useCallback(() => {
@@ -216,7 +316,53 @@ export function useChat(
     setSessionId(newId());
   }, []);
 
+  // Re-open a past chat: load its transcript and resume the same server session,
+  // so the customer can keep the conversation going with full context intact.
+  const openChat = useCallback(
+    async (id: string) => {
+      if (!auth || id === sessionId) return;
+      abortRef.current?.abort();
+      stopSpeaking();
+      recognizerRef.current?.stop();
+      pendingRef.current = false;
+      setPending(false);
+      bubbleIdRef.current = null;
+      lastReplyRef.current = '';
+      setActivity(null);
+      const transcript = await getChatTranscript(auth.token, id);
+      if (!transcript) return;
+      setMessages(transcript.messages.map((m) => ({ id: newId(), role: m.role, text: m.text })));
+      setSessionId(id);
+    },
+    [auth, sessionId],
+  );
+
+  // Show the customer's orders as an interactive picker — a plain data fetch,
+  // no agent turn (so it costs no tokens and never dumps a table). Picking an
+  // order hands off to the agent for that one order's refund flow.
+  const showOrders = useCallback(async () => {
+    if (!auth || pendingRef.current) return;
+    try {
+      const orders = await getMyOrders(auth.token);
+      setMessages((prev) => [
+        ...prev,
+        { id: newId(), role: 'user', text: 'Show me my orders' },
+        { id: newId(), role: 'assistant', kind: 'orders', text: '', orders },
+      ]);
+    } catch (err) {
+      // A stale token (e.g. after a server restart) should send the user back to
+      // login, not silently render an empty "no orders" menu.
+      if (err instanceof UnauthorizedError) onUnauthorized();
+    }
+  }, [auth, onUnauthorized]);
+
+  // Lock a confirm card to the customer's choice (so it can't be re-clicked).
+  const resolveConfirm = useCallback((id: string, choice: 'yes' | 'no') => {
+    setMessages((prev) => prev.map((m) => (m.id === id ? { ...m, resolved: choice } : m)));
+  }, []);
+
   return {
+    sessionId,
     messages,
     input,
     setInput,
@@ -225,9 +371,13 @@ export function useChat(
     voiceOn,
     setVoiceOn,
     listening,
+    history,
     sttSupported: speechRecognitionSupported(),
     send,
     startListening,
     newConversation,
+    openChat,
+    showOrders,
+    resolveConfirm,
   };
 }

@@ -37,4 +37,9 @@ export const config = {
 
   crmBackend,
   databaseUrl: process.env.DATABASE_URL?.trim() || undefined,
+  /** Path to a CA bundle (e.g. the AWS RDS root CA) for verified Postgres TLS. */
+  pgCaBundle: process.env.PG_CA_BUNDLE?.trim() || undefined,
+  /** Skip Postgres TLS cert verification — explicit opt-in for the throwaway
+   *  RDS demo when no CA bundle is provided. Never enable in production. */
+  pgTlsInsecure: process.env.PG_TLS_INSECURE === 'true',
 } as const;

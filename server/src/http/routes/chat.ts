@@ -5,15 +5,27 @@
  */
 
 import { Router, type Request, type Response } from 'express';
-import type { AgentEvent, AgentEventBody, Channel } from '@northwind/shared';
+import type {
+  AgentEvent,
+  AgentEventBody,
+  Channel,
+  ChatHistoryItem,
+  ChatTranscriptMessage,
+} from '@northwind/shared';
 import { runAgentTurn } from '../../agent/runAgentTurn.js';
 import { nextSeq, publish } from '../../events/eventBus.js';
 import { customerIdForToken } from '../../auth/auth.js';
 import { store } from '../../crm/store.js';
+import { getSessionForCustomer, listSessionsForCustomer } from '../../events/sessionStore.js';
 import { getBearerToken } from '../bearer.js';
 import { openSse, writeSse, writeSseComment } from '../sse.js';
 
 export const chatRouter = Router();
+
+/** Hard cap on a single user message. A refund request is a sentence or two;
+ *  this stops a pasted mega-string from blowing up token usage (and is backed
+ *  by the 256kb JSON body limit in app.ts as a coarse outer guard). */
+const MAX_MESSAGE_CHARS = 4000;
 
 chatRouter.post('/stream', async (req: Request, res: Response) => {
   const sessionId = String(req.body?.sessionId ?? '').trim();
@@ -25,8 +37,15 @@ chatRouter.post('/stream', async (req: Request, res: Response) => {
     return;
   }
 
+  if (message.length > MAX_MESSAGE_CHARS) {
+    res
+      .status(413)
+      .json({ error: `Message too long — please keep it under ${MAX_MESSAGE_CHARS} characters.` });
+    return;
+  }
+
   // Resolve the authenticated customer; the agent is scoped to this account.
-  const customer = store.getById(customerIdForToken(getBearerToken(req)) ?? '');
+  const customer = await store.getById(customerIdForToken(getBearerToken(req)) ?? '');
   if (!customer) {
     res.status(401).json({ error: 'Not authenticated. Please log in again.' });
     return;
@@ -72,4 +91,74 @@ chatRouter.post('/stream', async (req: Request, res: Response) => {
     clearInterval(heartbeat);
     if (!closed) res.end();
   }
+});
+
+/**
+ * GET /api/chat/orders — the signed-in customer's orders, for the in-chat order
+ * picker. Deterministic (no LLM/tokens): listing orders is plain data, so we
+ * serve it directly rather than asking the agent to enumerate them.
+ */
+chatRouter.get('/orders', async (req: Request, res: Response) => {
+  const customerId = customerIdForToken(getBearerToken(req));
+  if (!customerId) {
+    res.status(401).json({ error: 'Not authenticated. Please log in again.' });
+    return;
+  }
+  const customer = await store.getById(customerId);
+  if (!customer) {
+    res.status(404).json({ error: 'Account not found.' });
+    return;
+  }
+  res.json({ orders: customer.orders });
+});
+
+/**
+ * GET /api/chat/history — the signed-in customer's own past conversations.
+ * Scoped to the authenticated customer; one customer can never list another's.
+ */
+chatRouter.get('/history', (req: Request, res: Response) => {
+  const customerId = customerIdForToken(getBearerToken(req));
+  if (!customerId) {
+    res.status(401).json({ error: 'Not authenticated. Please log in again.' });
+    return;
+  }
+  const chats: ChatHistoryItem[] = listSessionsForCustomer(customerId).map((s) => ({
+    id: s.id,
+    title: s.title,
+    channel: s.channel,
+    startedAt: s.startedAt,
+    lastActivity: s.lastActivity,
+    messageCount: s.messageCount,
+    decisions: s.decisions,
+  }));
+  res.json({ chats });
+});
+
+/**
+ * GET /api/chat/history/:id — the reconstructed transcript of one past chat,
+ * but only if it belongs to the authenticated customer (ownership-checked).
+ */
+chatRouter.get('/history/:id', (req: Request, res: Response) => {
+  const customerId = customerIdForToken(getBearerToken(req));
+  if (!customerId) {
+    res.status(401).json({ error: 'Not authenticated. Please log in again.' });
+    return;
+  }
+  const session = getSessionForCustomer(customerId, req.params.id);
+  if (!session) {
+    res.status(404).json({ error: 'Conversation not found.' });
+    return;
+  }
+  const messages: ChatTranscriptMessage[] = [];
+  for (const event of session.events) {
+    if (event.type === 'user_message') messages.push({ role: 'user', text: event.text });
+    else if (event.type === 'assistant_message') messages.push({ role: 'assistant', text: event.text });
+  }
+  res.json({
+    id: session.id,
+    title: session.title,
+    channel: session.channel,
+    startedAt: session.startedAt,
+    messages,
+  });
 });

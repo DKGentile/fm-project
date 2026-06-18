@@ -32,6 +32,11 @@ export interface ToolContext {
   emit: Emit;
   /** The authenticated customer — all account/order access is scoped to this. */
   customerId: string;
+  /** Orders confirmed for refund across this session (persists between turns). */
+  sessionConfirmations: Set<string>;
+  /** Orders whose confirmation was first requested in THIS turn (blocks
+   *  confirm-then-process within a single turn). */
+  confirmRequestedThisTurn: Set<string>;
 }
 
 type Input = Record<string, unknown>;
@@ -51,11 +56,11 @@ function stringArray(value: unknown): string[] {
 }
 
 /** Resolve an order ONLY if it belongs to the authenticated customer. */
-function resolveOwned(
+async function resolveOwned(
   customerId: string,
   orderId: string,
-): { customer: Customer; order: Order } | undefined {
-  const customer = store.getById(customerId);
+): Promise<{ customer: Customer; order: Order } | undefined> {
+  const customer = await store.getById(customerId);
   if (!customer) return undefined;
   const q = orderId.trim().toLowerCase();
   const order = customer.orders.find((o) => o.id.toLowerCase() === q);
@@ -67,8 +72,8 @@ const NOT_ON_ACCOUNT = (orderId: string) =>
 
 // ───────────────────────── handlers ─────────────────────────
 
-function getMyAccount(customerId: string): ToolResult {
-  const customer = store.getById(customerId);
+async function getMyAccount(customerId: string): Promise<ToolResult> {
+  const customer = await store.getById(customerId);
   if (!customer) return notFound('Your account could not be loaded.');
   return {
     output: {
@@ -99,23 +104,23 @@ function getMyAccount(customerId: string): ToolResult {
   };
 }
 
-function getOrderDetails(input: Input, customerId: string): ToolResult {
+async function getOrderDetails(input: Input, customerId: string): Promise<ToolResult> {
   const orderId = String(input.orderId ?? '');
-  const hit = resolveOwned(customerId, orderId);
+  const hit = await resolveOwned(customerId, orderId);
   if (!hit) return NOT_ON_ACCOUNT(orderId);
   return { output: { order: hit.order }, isError: false };
 }
 
-function checkReturnWindowTool(input: Input, customerId: string): ToolResult {
+async function checkReturnWindowTool(input: Input, customerId: string): Promise<ToolResult> {
   const orderId = String(input.orderId ?? '');
-  const hit = resolveOwned(customerId, orderId);
+  const hit = await resolveOwned(customerId, orderId);
   if (!hit) return NOT_ON_ACCOUNT(orderId);
   return { output: checkReturnWindow(hit.order), isError: false };
 }
 
-function checkItemEligibilityTool(input: Input, customerId: string): ToolResult {
+async function checkItemEligibilityTool(input: Input, customerId: string): Promise<ToolResult> {
   const orderId = String(input.orderId ?? '');
-  const hit = resolveOwned(customerId, orderId);
+  const hit = await resolveOwned(customerId, orderId);
   if (!hit) return NOT_ON_ACCOUNT(orderId);
   const item = resolveItem(hit.order, input.sku ? String(input.sku) : undefined);
   if (!item) {
@@ -126,15 +131,15 @@ function checkItemEligibilityTool(input: Input, customerId: string): ToolResult 
   return { output: checkItemEligibility(item, hit.order), isError: false };
 }
 
-function checkCustomerStandingTool(customerId: string): ToolResult {
-  const customer = store.getById(customerId);
+async function checkCustomerStandingTool(customerId: string): Promise<ToolResult> {
+  const customer = await store.getById(customerId);
   if (!customer) return notFound('Your account could not be loaded.');
   return { output: checkCustomerStanding(customer), isError: false };
 }
 
-function calculateRefundAmount(input: Input, customerId: string): ToolResult {
+async function calculateRefundAmount(input: Input, customerId: string): Promise<ToolResult> {
   const orderId = String(input.orderId ?? '');
-  const hit = resolveOwned(customerId, orderId);
+  const hit = await resolveOwned(customerId, orderId);
   if (!hit) return NOT_ON_ACCOUNT(orderId);
   const item = resolveItem(hit.order, input.sku ? String(input.sku) : undefined);
   if (!item) return notFound(`Specify which item to calculate for in order ${hit.order.id}.`);
@@ -144,12 +149,85 @@ function calculateRefundAmount(input: Input, customerId: string): ToolResult {
   };
 }
 
-async function processRefund(input: Input, customerId: string, emit: Emit): Promise<ToolResult> {
+async function requestRefundConfirmation(input: Input, ctx: ToolContext): Promise<ToolResult> {
   const orderId = String(input.orderId ?? '');
-  const hit = resolveOwned(customerId, orderId);
+  const hit = await resolveOwned(ctx.customerId, orderId);
   if (!hit) return NOT_ON_ACCOUNT(orderId);
   const item = resolveItem(hit.order, input.sku ? String(input.sku) : undefined);
   if (!item) return notFound(`Specify which item to refund in order ${hit.order.id}.`);
+
+  // Only ever confirm something that is genuinely refundable — re-validate first,
+  // so a confirmation card can't be shown for an ineligible item.
+  const blockers = assessBlockers(hit.customer, hit.order, item);
+  if (blockers.length > 0) {
+    return {
+      output: {
+        confirmationRequired: false,
+        refused: true,
+        reason: 'This item is not eligible to refund — there is nothing to confirm.',
+        blockers,
+        policyRefs: [...new Set(blockers.flatMap((b) => b.policyRefs))],
+        recommendedAction: recommendedActionFor(blockers),
+      },
+      isError: true,
+    };
+  }
+
+  // Record the confirmation request. Only the FIRST request this session marks
+  // the order as "asked this turn" (so re-confirming on the customer's yes-turn
+  // doesn't re-block processing).
+  if (!ctx.sessionConfirmations.has(hit.order.id)) {
+    ctx.confirmRequestedThisTurn.add(hit.order.id);
+  }
+  ctx.sessionConfirmations.add(hit.order.id);
+
+  const calc = calculateRefund(item);
+  return {
+    output: {
+      confirmationRequired: true,
+      orderId: hit.order.id,
+      sku: item.sku,
+      item: item.name,
+      refundAmount: calc.refundAmount,
+      restockingFee: calc.restockingFee,
+      method: hit.order.paymentMethod,
+    },
+    isError: false,
+  };
+}
+
+async function processRefund(input: Input, ctx: ToolContext): Promise<ToolResult> {
+  const { customerId, emit } = ctx;
+  const orderId = String(input.orderId ?? '');
+  const hit = await resolveOwned(customerId, orderId);
+  if (!hit) return NOT_ON_ACCOUNT(orderId);
+  const item = resolveItem(hit.order, input.sku ? String(input.sku) : undefined);
+  if (!item) return notFound(`Specify which item to refund in order ${hit.order.id}.`);
+
+  // Confirmation gate — enforce the confirm-first flow server-side, not just in
+  // the prompt. A refund requires a confirmation the customer actually saw and
+  // replied to, which means it must have been requested in an EARLIER turn.
+  if (!ctx.sessionConfirmations.has(hit.order.id)) {
+    return {
+      output: {
+        refused: true,
+        reason:
+          'No confirmation on record. Call request_refund_confirmation first and wait for the customer to confirm before processing.',
+        recommendedAction: 'request_refund_confirmation',
+      },
+      isError: true,
+    };
+  }
+  if (ctx.confirmRequestedThisTurn.has(hit.order.id)) {
+    return {
+      output: {
+        refused: true,
+        reason:
+          'You just asked the customer to confirm this refund — end your turn and wait. Only call process_refund in a later turn, after they have confirmed.',
+      },
+      isError: true,
+    };
+  }
 
   // Server-side policy guardrail — refuse ineligible refunds outright.
   const blockers = assessBlockers(hit.customer, hit.order, item);
@@ -171,7 +249,10 @@ async function processRefund(input: Input, customerId: string, emit: Emit): Prom
   for (let attempt = 1; ; attempt++) {
     try {
       const receipt = await chargeRefund(hit.order.id, calc.refundAmount, hit.order.paymentMethod);
-      store.applyRefund(hit.order.id, calc.refundAmount, receipt.confirmation);
+      // Awaited write-through: a DB failure here surfaces as a failed refund below
+      // (no phantom success), and persistence is idempotent + transactional.
+      await store.applyRefund(hit.order.id, calc.refundAmount, receipt.confirmation, item.sku);
+      ctx.sessionConfirmations.delete(hit.order.id); // consume — a new refund needs a new confirmation
       return {
         output: {
           success: true,
@@ -183,6 +264,13 @@ async function processRefund(input: Input, customerId: string, emit: Emit): Prom
           confirmation: receipt.confirmation,
           attempts: attempt,
           reason: String(input.reason ?? ''),
+          // Simulated post-refund notification (no real email is sent — same
+          // mock spirit as the payment gateway). Aria relays this to the customer.
+          notification: {
+            channel: 'email',
+            to: hit.customer.email,
+            returnLabel: item.condition !== 'defective',
+          },
         },
         isError: false,
         decision: {
@@ -221,9 +309,9 @@ async function processRefund(input: Input, customerId: string, emit: Emit): Prom
   }
 }
 
-function denyRefund(input: Input, customerId: string): ToolResult {
+async function denyRefund(input: Input, customerId: string): Promise<ToolResult> {
   const orderId = String(input.orderId ?? '');
-  const hit = resolveOwned(customerId, orderId);
+  const hit = await resolveOwned(customerId, orderId);
   if (!hit) return NOT_ON_ACCOUNT(orderId);
   const reason = String(input.reason ?? 'Not eligible under policy.');
   const policyRefs = stringArray(input.policyRefs);
@@ -234,9 +322,9 @@ function denyRefund(input: Input, customerId: string): ToolResult {
   };
 }
 
-function escalateToHuman(input: Input, customerId: string): ToolResult {
+async function escalateToHuman(input: Input, customerId: string): Promise<ToolResult> {
   const orderId = String(input.orderId ?? '');
-  const hit = resolveOwned(customerId, orderId);
+  const hit = await resolveOwned(customerId, orderId);
   if (!hit) return NOT_ON_ACCOUNT(orderId);
   const reason = String(input.reason ?? 'Requires manager review.');
   const policyRefs = stringArray(input.policyRefs);
@@ -248,9 +336,9 @@ function escalateToHuman(input: Input, customerId: string): ToolResult {
   };
 }
 
-function requestPhotoEvidence(input: Input, customerId: string): ToolResult {
+async function requestPhotoEvidence(input: Input, customerId: string): Promise<ToolResult> {
   const orderId = String(input.orderId ?? '');
-  const hit = resolveOwned(customerId, orderId);
+  const hit = await resolveOwned(customerId, orderId);
   if (!hit) return NOT_ON_ACCOUNT(orderId);
   return {
     output: {
@@ -277,7 +365,7 @@ export async function executeTool(
   ctx: ToolContext,
 ): Promise<ToolResult> {
   const input = (rawInput ?? {}) as Input;
-  const { customerId, emit } = ctx;
+  const { customerId } = ctx;
 
   switch (name) {
     case 'get_my_account':
@@ -292,8 +380,10 @@ export async function executeTool(
       return checkCustomerStandingTool(customerId);
     case 'calculate_refund_amount':
       return calculateRefundAmount(input, customerId);
+    case 'request_refund_confirmation':
+      return requestRefundConfirmation(input, ctx);
     case 'process_refund':
-      return processRefund(input, customerId, emit);
+      return processRefund(input, ctx);
     case 'deny_refund':
       return denyRefund(input, customerId);
     case 'escalate_to_human':

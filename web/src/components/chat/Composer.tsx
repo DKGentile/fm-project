@@ -47,6 +47,7 @@ export default function Composer({
             }
           }}
           rows={1}
+          maxLength={4000}
           placeholder={listening ? 'Listening…' : 'Ask about a refund — include your order ID or email…'}
           className="max-h-32 flex-1 resize-none rounded-xl border border-slate-200 px-3.5 py-2.5 text-[14px] outline-none transition focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100"
         />

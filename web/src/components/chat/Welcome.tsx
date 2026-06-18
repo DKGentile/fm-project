@@ -1,6 +1,4 @@
-import { EXAMPLE_PROMPT } from '../../lib/scenarios';
-
-export default function Welcome({ onPick, name }: { onPick: (text: string) => void; name?: string }) {
+export default function Welcome({ onSeeOrders, name }: { onSeeOrders: () => void; name?: string }) {
   const firstName = name?.split(' ')[0];
   return (
     <div className="fade-in mx-auto mt-6 max-w-md text-center">
@@ -11,14 +9,14 @@ export default function Welcome({ onPick, name }: { onPick: (text: string) => vo
         Hi{firstName ? ` ${firstName}` : ''}, I'm Aria from Northwind Goods.
       </div>
       <p className="mt-1 text-sm text-slate-500">
-        I can help with refunds and returns. Tell me your order ID or the email on your account, and
-        what you'd like to return.
+        I can help with refunds and returns. Browse your orders to get started, or just tell me what
+        you'd like to return.
       </p>
       <button
-        onClick={() => onPick(EXAMPLE_PROMPT)}
+        onClick={onSeeOrders}
         className="mt-4 rounded-lg bg-slate-900 px-3.5 py-2 text-[13px] font-medium text-white transition hover:bg-slate-700"
       >
-        Start with an example →
+        See my orders →
       </button>
     </div>
   );

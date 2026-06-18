@@ -6,7 +6,7 @@
  */
 
 import { config } from '../config.js';
-import { loadAnchoredCrm } from './store.js';
+import { loadRawCrm } from './anchor.js';
 import { closePostgresPool, replacePostgresCrm } from './postgres.js';
 
 if (!config.databaseUrl) {
@@ -14,7 +14,8 @@ if (!config.databaseUrl) {
   process.exit(1);
 }
 
-const customers = loadAnchoredCrm();
+// Seed RAW (anchor-relative) dates; both backends re-anchor onto today at read time.
+const customers = loadRawCrm();
 
 try {
   await replacePostgresCrm(customers);

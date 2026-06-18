@@ -8,7 +8,8 @@
     "start": "tsx src/index.ts",
     "typecheck": "tsc --noEmit",
     "test": "tsx --test \"src/**/*.test.ts\"",
-    "seed:postgres": "tsx src/crm/seedPostgres.ts"
+    "seed:postgres": "tsx src/crm/seedPostgres.ts",
+    "dev:seed": "tsx src/crm/devSeed.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.69.0",

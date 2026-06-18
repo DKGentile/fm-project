@@ -3,10 +3,13 @@ import type { AppConfig } from '@northwind/shared';
 import type { AuthSession } from '../../hooks/useAuth';
 import { useChat } from '../../hooks/useChat';
 import MessageBubble from './MessageBubble';
+import OrderMenu from './OrderMenu';
+import ConfirmCard from './ConfirmCard';
 import ActivityCard from './ActivityCard';
 import Composer from './Composer';
 import Welcome from './Welcome';
 import ScenarioSidebar from './ScenarioSidebar';
+import HistoryPanel from './HistoryPanel';
 import LoginOverlay from './LoginOverlay';
 
 interface ChatPanelProps {
@@ -61,12 +64,49 @@ export default function ChatPanel({ config, auth, onLogin, onLogout }: ChatPanel
 
         <div ref={scrollRef} className="scroll-thin flex-1 space-y-3 overflow-y-auto px-4 py-4">
           {chat.messages.length === 0 && (
-            <Welcome name={auth?.customer.name} onPick={(t) => void chat.send(t)} />
+            <Welcome name={auth?.customer.name} onSeeOrders={() => void chat.showOrders()} />
           )}
-          {chat.messages.map((m) => (
-            <MessageBubble key={m.id} role={m.role} text={m.text} />
-          ))}
-          {chat.activity && (chat.pending || chat.activity.tools.length > 0) && (
+          {chat.messages.map((m) => {
+            if (m.kind === 'orders') {
+              return (
+                <OrderMenu
+                  key={m.id}
+                  orders={m.orders ?? []}
+                  disabled={chat.pending}
+                  onSelect={(o) =>
+                    void chat.send(
+                      `I'd like a refund for order ${o.id}${
+                        o.items.length === 1 ? ` — ${o.items[0].name}` : ''
+                      }.`,
+                    )
+                  }
+                />
+              );
+            }
+            if (m.kind === 'confirm' && m.confirm) {
+              return (
+                <ConfirmCard
+                  key={m.id}
+                  confirm={m.confirm}
+                  resolved={m.resolved}
+                  disabled={chat.pending}
+                  onConfirm={() => {
+                    chat.resolveConfirm(m.id, 'yes');
+                    void chat.send(`Yes — please go ahead and refund order ${m.confirm!.orderId}.`);
+                  }}
+                  onCancel={() => {
+                    chat.resolveConfirm(m.id, 'no');
+                    void chat.send(`Actually, never mind — please don't refund order ${m.confirm!.orderId}.`);
+                  }}
+                />
+              );
+            }
+            return <MessageBubble key={m.id} role={m.role} text={m.text} />;
+          })}
+          {/* Live work trace while Aria is responding; it disappears once the
+              reply lands (the outcome is in her summary + the Admin Dashboard).
+              Kept on screen only if the turn errored, so errors stay visible. */}
+          {chat.activity && (chat.pending || chat.activity.error) && (
             <ActivityCard activity={chat.activity} pending={chat.pending} />
           )}
         </div>
@@ -86,7 +126,20 @@ export default function ChatPanel({ config, auth, onLogin, onLogout }: ChatPanel
         {!auth && <LoginOverlay onLogin={onLogin} />}
       </section>
 
-      <ScenarioSidebar pending={chat.pending || !auth} onPick={(t) => void chat.send(t)} />
+      <div className="flex min-h-0 flex-col gap-4 overflow-y-auto">
+        <ScenarioSidebar
+          pending={chat.pending || !auth}
+          onPick={(t) => void chat.send(t)}
+          onShowOrders={() => void chat.showOrders()}
+        />
+        {auth && (
+          <HistoryPanel
+            chats={chat.history}
+            activeId={chat.sessionId}
+            onOpen={(id) => void chat.openChat(id)}
+          />
+        )}
+      </div>
     </div>
   );
 }

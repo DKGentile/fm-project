@@ -7,7 +7,15 @@ import { config } from './config.js';
 import { createApp } from './app.js';
 import { store } from './crm/store.js';
 
-await store.init();
+try {
+  await store.init();
+} catch (err) {
+  console.error(`\n  ✗ CRM init failed: ${err instanceof Error ? err.message : String(err)}`);
+  console.error(
+    '    Check CRM_BACKEND / DATABASE_URL / network (RDS security-group IP) and that the schema is seeded.\n',
+  );
+  process.exit(1);
+}
 
 createApp().listen(config.port, () => {
   console.log(`\n  Northwind Refund Agent server`);

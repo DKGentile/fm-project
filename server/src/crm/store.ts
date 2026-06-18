@@ -1,118 +1,90 @@
 /**
- * CRM store.
+ * CRM repository.
  *
- * By default it loads data/crm.json, "anchors" every date to the current day so
- * the scenarios stay valid whenever you run the demo, and exposes synchronous
- * lookups used by the agent tools. In CRM_BACKEND=postgres mode, startup loads
- * the same domain model from Postgres and refund mutations write through to DB.
+ * One async interface (CrmRepository) with two backends, selected by config:
+ *   - JsonCrmRepository  (default) — in-memory, date-anchored, zero-infra.
+ *   - PostgresCrmRepository        — LIVE per-call queries against Postgres.
+ *
+ * Tools `await` these methods, so in Postgres mode every tool call (lookup,
+ * ownership check, refund) hits the live database — and refund writes are awaited
+ * and transactional, so a persistence failure surfaces as a real error.
  */
 
-import { readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
 import type { Customer, Order } from '@northwind/shared';
 import { config } from '../config.js';
-import { DAY_MS, shiftIsoDate, toUtcMidnight } from '../utils/dates.js';
-import {
-  loadCustomersFromPostgres,
-  persistRefundToPostgres,
-  replacePostgresCrm,
-} from './postgres.js';
-
-interface RawCrm {
-  _anchorDate: string;
-  customers: Customer[];
-}
-
-const CRM_PATH = fileURLToPath(new URL('../../../data/crm.json', import.meta.url));
-
-export function loadAnchoredCrm(): Customer[] {
-  const raw = JSON.parse(readFileSync(CRM_PATH, 'utf8')) as RawCrm;
-  const anchor = new Date(raw._anchorDate + 'T00:00:00Z').getTime();
-  // Whole-day offset from today's UTC midnight so it matches daysSince()'s basis.
-  const offsetDays = Math.round((toUtcMidnight(new Date()) - anchor) / DAY_MS);
-
-  return raw.customers.map((c) => ({
-    ...c,
-    accountCreated: shiftIsoDate(c.accountCreated, offsetDays),
-    orders: c.orders.map((o) => ({
-      ...o,
-      date: shiftIsoDate(o.date, offsetDays),
-      deliveredDate: o.deliveredDate ? shiftIsoDate(o.deliveredDate, offsetDays) : undefined,
-      items: o.items.map((i) => ({ ...i })),
-    })),
-  }));
-}
+import { loadAnchoredCrm, loadRawCrm } from './anchor.js';
+import { loadCustomers, persistRefundToPostgres, replacePostgresCrm } from './postgres.js';
 
 export interface OrderHit {
   customer: Customer;
   order: Order;
 }
 
-class CrmStore {
+export interface CrmRepository {
+  /** Verify connectivity / warm caches at boot. */
+  init(): Promise<void>;
+  all(): Promise<Customer[]>;
+  getById(id: string): Promise<Customer | undefined>;
+  /** Exact email match — used for login. */
+  findByEmail(email: string): Promise<Customer | undefined>;
+  /** An order, but only if it belongs to the given customer (account scoping). */
+  findOwnedOrder(customerId: string, orderId: string): Promise<Order | undefined>;
+  findOrder(orderId: string): Promise<OrderHit | undefined>;
+  /** Fuzzy lookup by id, email, phone, order id, or (partial) name. */
+  findCustomer(query: string): Promise<Customer | undefined>;
+  /** Record a processed refund (mark order refunded + bump the abuse counter). */
+  applyRefund(orderId: string, amount: number, confirmation: string, sku?: string): Promise<void>;
+  /** Restore the demo data set. */
+  reset(): Promise<void>;
+}
+
+function findCustomerIn(customers: Customer[], query: string): Customer | undefined {
+  const q = query.trim().toLowerCase();
+  if (!q) return undefined;
+  const exact = customers.find(
+    (c) =>
+      c.id.toLowerCase() === q ||
+      c.email.toLowerCase() === q ||
+      c.phone.replace(/[^\d]/g, '') === q.replace(/[^\d]/g, ''),
+  );
+  if (exact) return exact;
+  const byOrder = customers.find((c) => c.orders.some((o) => o.id.toLowerCase() === q));
+  if (byOrder) return byOrder;
+  return customers.find(
+    (c) => c.name.toLowerCase().includes(q) || c.email.toLowerCase().includes(q),
+  );
+}
+
+// ───────────────────────── JSON (in-memory, default) ─────────────────────────
+
+class JsonCrmRepository implements CrmRepository {
   private customers: Customer[] = loadAnchoredCrm();
-  private initialized = false;
 
   async init(): Promise<void> {
-    if (this.initialized) return;
-    if (config.crmBackend === 'postgres') {
-      this.customers = await loadCustomersFromPostgres();
-      console.log(`  ▸ CRM backend: postgres (${this.customers.length} customers loaded)`);
-    } else {
-      console.log(`  ▸ CRM backend: json (${this.customers.length} customers loaded)`);
-    }
-    this.initialized = true;
+    console.log(`  ▸ CRM backend: json (${this.customers.length} customers loaded)`);
   }
 
-  reset(): void {
-    this.customers = loadAnchoredCrm();
-    if (config.crmBackend === 'postgres') {
-      replacePostgresCrm(this.customers).catch((err) => {
-        console.error('Failed to reset Postgres CRM:', err);
-      });
-    }
-  }
-
-  all(): Customer[] {
+  async all(): Promise<Customer[]> {
     return this.customers;
   }
 
-  getById(id: string): Customer | undefined {
+  async getById(id: string): Promise<Customer | undefined> {
     return this.customers.find((c) => c.id === id);
   }
 
-  /** Exact email match — used for login. */
-  findByEmail(email: string): Customer | undefined {
+  async findByEmail(email: string): Promise<Customer | undefined> {
     const e = email.trim().toLowerCase();
     return this.customers.find((c) => c.email.toLowerCase() === e);
   }
 
-  /** An order, but only if it belongs to the given customer (account scoping). */
-  findOwnedOrder(customerId: string, orderId: string): Order | undefined {
-    const customer = this.getById(customerId);
+  async findOwnedOrder(customerId: string, orderId: string): Promise<Order | undefined> {
+    const customer = this.customers.find((c) => c.id === customerId);
     if (!customer) return undefined;
     const q = orderId.trim().toLowerCase();
     return customer.orders.find((o) => o.id.toLowerCase() === q);
   }
 
-  /** Fuzzy lookup by id, email, phone, order id, or (partial) name. */
-  findCustomer(query: string): Customer | undefined {
-    const q = query.trim().toLowerCase();
-    if (!q) return undefined;
-    const exact = this.customers.find(
-      (c) =>
-        c.id.toLowerCase() === q ||
-        c.email.toLowerCase() === q ||
-        c.phone.replace(/[^\d]/g, '') === q.replace(/[^\d]/g, ''),
-    );
-    if (exact) return exact;
-    const byOrder = this.customers.find((c) => c.orders.some((o) => o.id.toLowerCase() === q));
-    if (byOrder) return byOrder;
-    return this.customers.find(
-      (c) => c.name.toLowerCase().includes(q) || c.email.toLowerCase().includes(q),
-    );
-  }
-
-  findOrder(orderId: string): OrderHit | undefined {
+  async findOrder(orderId: string): Promise<OrderHit | undefined> {
     const q = orderId.trim().toLowerCase();
     for (const customer of this.customers) {
       const order = customer.orders.find((o) => o.id.toLowerCase() === q);
@@ -121,26 +93,79 @@ class CrmStore {
     return undefined;
   }
 
-  /** Apply a successful refund: mark the order refunded and bump the abuse counter. */
-  applyRefund(orderId: string, amount: number, confirmation: string): void {
-    const hit = this.findOrder(orderId);
+  async findCustomer(query: string): Promise<Customer | undefined> {
+    return findCustomerIn(this.customers, query);
+  }
+
+  async applyRefund(orderId: string, amount: number, confirmation: string): Promise<void> {
+    const hit = await this.findOrder(orderId);
     if (!hit) return;
     hit.order.status = 'refunded';
     hit.order.refundedAmount = amount;
     hit.order.refundConfirmation = confirmation;
     hit.customer.refundsLast12mo += 1;
-    if (config.crmBackend === 'postgres') {
-      persistRefundToPostgres({
-        customerId: hit.customer.id,
-        orderId,
-        sku: hit.order.items[0]?.sku,
-        amount,
-        confirmation,
-      }).catch((err) => {
-        console.error(`Failed to persist refund for ${orderId} to Postgres:`, err);
-      });
-    }
+  }
+
+  async reset(): Promise<void> {
+    this.customers = loadAnchoredCrm();
   }
 }
 
-export const store = new CrmStore();
+// ───────────────────────── Postgres (live per-call) ─────────────────────────
+
+class PostgresCrmRepository implements CrmRepository {
+  async init(): Promise<void> {
+    const customers = await loadCustomers();
+    console.log(`  ▸ CRM backend: postgres (${customers.length} customers; live per-request reads)`);
+    if (customers.length === 0) {
+      console.warn('  ⚠ Postgres returned 0 customers — run: npm -w server run seed:postgres');
+    }
+  }
+
+  async all(): Promise<Customer[]> {
+    return loadCustomers();
+  }
+
+  async getById(id: string): Promise<Customer | undefined> {
+    return (await loadCustomers({ id }))[0];
+  }
+
+  async findByEmail(email: string): Promise<Customer | undefined> {
+    return (await loadCustomers({ email: email.trim() }))[0];
+  }
+
+  async findOwnedOrder(customerId: string, orderId: string): Promise<Order | undefined> {
+    const customer = await this.getById(customerId);
+    if (!customer) return undefined;
+    const q = orderId.trim().toLowerCase();
+    return customer.orders.find((o) => o.id.toLowerCase() === q);
+  }
+
+  async findOrder(orderId: string): Promise<OrderHit | undefined> {
+    const customers = await loadCustomers({ orderId });
+    const q = orderId.trim().toLowerCase();
+    for (const customer of customers) {
+      const order = customer.orders.find((o) => o.id.toLowerCase() === q);
+      if (order) return { customer, order };
+    }
+    return undefined;
+  }
+
+  async findCustomer(query: string): Promise<Customer | undefined> {
+    return findCustomerIn(await loadCustomers(), query);
+  }
+
+  async applyRefund(orderId: string, amount: number, confirmation: string, sku?: string): Promise<void> {
+    await persistRefundToPostgres({ orderId, amount, confirmation, sku });
+  }
+
+  async reset(): Promise<void> {
+    await replacePostgresCrm(loadRawCrm());
+  }
+}
+
+function createRepository(): CrmRepository {
+  return config.crmBackend === 'postgres' ? new PostgresCrmRepository() : new JsonCrmRepository();
+}
+
+export const store: CrmRepository = createRepository();

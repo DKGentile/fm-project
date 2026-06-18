@@ -15,6 +15,12 @@ export interface SessionRecord {
   title: string;
   /** The authenticated customer this conversation belongs to. */
   customerName?: string;
+  /** Customer id — used to scope a customer's own chat history securely. */
+  customerId?: string;
+  /** Orders the agent has asked the customer to confirm a refund for. Gates
+   *  process_refund server-side: it may only run after a confirmation that was
+   *  requested in an EARLIER turn (i.e. the customer had a chance to confirm). */
+  confirmRequestedOrders: Set<string>;
   /** Full conversation history fed back to the model each turn. */
   messages: Anthropic.MessageParam[];
   events: AgentEvent[];
@@ -38,6 +44,7 @@ export function getOrCreateSession(id: string, channel: Channel): SessionRecord 
       startedAt: Date.now(),
       lastActivity: Date.now(),
       title: 'New conversation',
+      confirmRequestedOrders: new Set(),
       messages: [],
       events: [],
       toolCallCount: 0,
@@ -56,6 +63,19 @@ export function getSessionEvents(id: string): AgentEvent[] {
 
 export function listSessionRecords(): SessionRecord[] {
   return [...sessions.values()];
+}
+
+/** A customer's own non-empty conversations (newest first). */
+export function listSessionsForCustomer(customerId: string): SessionRecord[] {
+  return [...sessions.values()]
+    .filter((s) => s.customerId === customerId && s.messageCount > 0)
+    .sort((a, b) => b.lastActivity - a.lastActivity);
+}
+
+/** One conversation, but only if it belongs to this customer (ownership check). */
+export function getSessionForCustomer(customerId: string, id: string): SessionRecord | undefined {
+  const s = sessions.get(id);
+  return s && s.customerId === customerId ? s : undefined;
 }
 
 export function clearSessions(): void {
