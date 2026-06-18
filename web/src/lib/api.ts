@@ -5,8 +5,15 @@ import type {
   ChatHistoryItem,
   ChatTranscript,
   Customer,
+  EvalResult,
+  EvalSummary,
   Order,
 } from '@northwind/shared';
+
+export type EvalStreamEvent =
+  | { type: 'eval_result'; result: EvalResult }
+  | { type: 'eval_done'; summary: EvalSummary }
+  | { type: 'eval_error'; message: string };
 
 export async function getConfig(): Promise<AppConfig> {
   const res = await fetch('/api/config');
@@ -122,6 +129,38 @@ export async function getChatTranscript(token: string, id: string): Promise<Chat
   });
   if (!res.ok) return null;
   return (await res.json()) as ChatTranscript;
+}
+
+/** Run the policy eval suite, streaming each scored scenario as it lands. */
+export async function streamEvals(
+  onEvent: (e: EvalStreamEvent) => void,
+  signal?: AbortSignal,
+): Promise<void> {
+  const res = await fetch('/api/admin/eval/stream', { signal });
+  if (!res.ok || !res.body) throw new Error(`Eval run failed (${res.status}).`);
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    let sep: number;
+    while ((sep = buffer.indexOf('\n\n')) >= 0) {
+      const frame = buffer.slice(0, sep);
+      buffer = buffer.slice(sep + 2);
+      for (const line of frame.split('\n')) {
+        if (!line.startsWith('data:')) continue;
+        const json = line.slice(5).trim();
+        if (!json) continue;
+        try {
+          onEvent(JSON.parse(json) as EvalStreamEvent);
+        } catch {
+          /* skip malformed frame */
+        }
+      }
+    }
+  }
 }
 
 /** Subscribe to the global admin event stream. Returns an unsubscribe fn. */

@@ -11,10 +11,26 @@ export default function App() {
   const [tab, setTab] = useState<Tab>('chat');
   const [config, setConfig] = useState<AppConfig | null>(null);
   const { auth, login, logout } = useAuth();
+  const [dark, setDark] = useState(() => {
+    try {
+      return localStorage.getItem('northwind.theme') === 'dark';
+    } catch {
+      return false;
+    }
+  });
 
   useEffect(() => {
     getConfig().then(setConfig).catch(() => setConfig(null));
   }, []);
+
+  useEffect(() => {
+    document.documentElement.classList.toggle('dark', dark);
+    try {
+      localStorage.setItem('northwind.theme', dark ? 'dark' : 'light');
+    } catch {
+      /* storage may be unavailable */
+    }
+  }, [dark]);
 
   async function onReset() {
     if (!confirm('Reset the CRM and clear all sessions? This replays the demo from scratch.')) return;
@@ -56,6 +72,14 @@ export default function App() {
                 {config.flakyGateway && <Badge title="Simulated flaky gateway">gateway: flaky</Badge>}
               </>
             )}
+            <button
+              onClick={() => setDark((d) => !d)}
+              title="Toggle dark mode"
+              aria-label="Toggle dark mode"
+              className="rounded-md border border-slate-200 px-2 py-1 text-slate-600 transition hover:bg-slate-50"
+            >
+              {dark ? '☀' : '🌙'}
+            </button>
             <button
               onClick={onReset}
               className="rounded-md border border-slate-200 px-2.5 py-1 font-medium text-slate-600 transition hover:border-slate-300 hover:bg-slate-50"

@@ -68,3 +68,24 @@ export interface ChatTranscript {
   startedAt: number;
   messages: ChatTranscriptMessage[];
 }
+
+// ───────────────────────── policy evals ─────────────────────────
+
+export type EvalOutcome = 'approve' | 'deny' | 'escalate' | 'photo' | 'unknown';
+
+/** One scored eval scenario — did the agent reach the policy-correct decision? */
+export interface EvalResult {
+  id: string;
+  label: string;
+  category: 'policy' | 'adversarial';
+  rule: string;
+  message: string;
+  expected: EvalOutcome[];
+  got: EvalOutcome;
+  pass: boolean;
+}
+
+export interface EvalSummary {
+  passed: number;
+  total: number;
+}

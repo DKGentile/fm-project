@@ -17,6 +17,11 @@ export function writeSse(res: Response, event: AgentEvent): void {
   res.write(`data: ${JSON.stringify(event)}\n\n`);
 }
 
+/** Write an arbitrary JSON payload as one SSE `data:` frame (non-AgentEvent streams). */
+export function writeSseJson(res: Response, data: unknown): void {
+  res.write(`data: ${JSON.stringify(data)}\n\n`);
+}
+
 /** SSE comment line — keeps the connection alive without delivering an event. */
 export function writeSseComment(res: Response, text: string): void {
   res.write(`: ${text}\n\n`);

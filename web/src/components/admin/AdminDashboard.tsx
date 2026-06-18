@@ -6,8 +6,9 @@ import SessionList from './SessionList';
 import Timeline from './Timeline';
 import CrmViewer from './CrmViewer';
 import PolicyViewer from './PolicyViewer';
+import EvalPanel from './EvalPanel';
 
-type SubView = 'reasoning' | 'crm' | 'policy';
+type SubView = 'reasoning' | 'crm' | 'policy' | 'evals';
 
 export default function AdminDashboard() {
   const { state, addEvents, eventsFor } = useAdminData();
@@ -52,6 +53,9 @@ export default function AdminDashboard() {
             <SubTab active={sub === 'policy'} onClick={() => setSub('policy')}>
               Refund policy
             </SubTab>
+            <SubTab active={sub === 'evals'} onClick={() => setSub('evals')}>
+              Policy evals
+            </SubTab>
             {sub === 'reasoning' && selected && (
               <span className="ml-auto truncate font-mono text-[11px] text-slate-400">{selected.slice(0, 8)}…</span>
             )}
@@ -60,6 +64,7 @@ export default function AdminDashboard() {
             {sub === 'reasoning' && <Timeline events={events} />}
             {sub === 'crm' && <CrmViewer />}
             {sub === 'policy' && <PolicyViewer />}
+            {sub === 'evals' && <EvalPanel />}
           </div>
         </section>
       </div>

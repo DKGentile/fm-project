@@ -82,6 +82,11 @@ export function clearSessions(): void {
   sessions.clear();
 }
 
+/** Remove a single session (used to clean up transient eval runs). */
+export function deleteSession(id: string): void {
+  sessions.delete(id);
+}
+
 /** Append an event to its session and maintain counters/title (no fan-out). */
 export function recordEvent(event: AgentEvent): void {
   const s = sessions.get(event.sessionId);
