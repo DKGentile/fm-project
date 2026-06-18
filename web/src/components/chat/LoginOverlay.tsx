@@ -33,7 +33,7 @@ export default function LoginOverlay({
   }
 
   return (
-    <div className="absolute inset-0 z-10 grid place-items-center bg-white/70 p-4 backdrop-blur-sm">
+    <div className="absolute inset-0 z-10 grid place-items-center p-4 backdrop-blur-md">
       <div className="w-[min(94%,400px)] rounded-2xl border border-slate-200 bg-white p-6 shadow-xl">
         <div className="mb-4 text-center">
           <div className="mx-auto mb-2 grid h-11 w-11 place-items-center rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 text-lg text-white shadow">

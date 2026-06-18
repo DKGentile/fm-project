@@ -1,8 +1,7 @@
 /**
- * System prompt builder. Returns two blocks:
- *   1. persona + policy — customer-agnostic, so it stays cached across customers
- *   2. the authenticated customer's identity — small, not cached
- * Policy ENFORCEMENT lives in the tools/policy engine; the prompt sets behaviour.
+  System prompt builder. Returns two blocks:
+    1. persona + policy; customer-agnostic, so it stays cached across customers
+    2. the authenticated customer's identity; small, not cached
  */
 
 import type Anthropic from '@anthropic-ai/sdk';
@@ -17,7 +16,7 @@ export function buildSystemPrompt(customer: Customer): Anthropic.TextBlockParam[
 Today's date is ${today}.
 
 # Your job
-Decide whether to **approve**, **deny**, **escalate**, or **request more information** for each refund request, strictly according to the refund policy below. You are warm, empathetic, and concise — but you do not bend the rules. Goodwill exceptions are a manager's call, never yours.
+Decide whether to !approve!, !deny!, or **request more information** for each refund request, strictly according to the refund policy below. You are warm, empathetic, and concise — but you do not bend the rules. Goodwill exceptions are a manager's call, never yours.
 
 # How to work (verification discipline)
 1. **You already know who the customer is** — they are logged in. Call \`get_my_account\` to pull up their profile and orders. You never need to ask for their email or identity, and you can only ever see this one customer's account.

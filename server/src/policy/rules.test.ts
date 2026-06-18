@@ -1,8 +1,4 @@
-/**
- * Policy-engine unit tests. These run against the real (date-anchored) CRM and
- * verify the deterministic refund rules — no API key or LLM required.
- *   run with:  npm test
- */
+
 
 import '../testSetup.js'; // must be first — forces the hermetic JSON backend
 import { test } from 'node:test';

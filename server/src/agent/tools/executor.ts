@@ -1,15 +1,3 @@
-/**
- * Tool execution. Dispatches a tool call to its handler and returns a ToolResult.
- *
- * SECURITY: every handler is scoped to the authenticated customer (ctx.customerId).
- * Order lookups go through resolveOwned(), which only finds orders on THAT
- * customer's account — so the agent (even under prompt injection) can never read
- * or act on another customer's order just because an order number was named.
- *
- * process_refund additionally re-validates the ENTIRE policy server-side (via
- * assessBlockers) and computes the amount itself, so enforcement never depends on
- * the prompt or a model-supplied figure.
- */
 
 import type { Customer, Emit, Order, OrderItem } from '@demitri/shared';
 import { store } from '../../crm/store.js';

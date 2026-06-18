@@ -54,7 +54,7 @@ export default function CrmViewer() {
             {c.scenario && <div className="mt-1.5 text-[11px] italic text-slate-400">{c.scenario}</div>}
             <div className="mt-2 space-y-1.5">
               {c.orders.map((o) => (
-                <div key={o.id} className="rounded-lg border border-slate-100 bg-slate-50/60 px-2.5 py-1.5">
+                <div key={o.id} className="rounded-lg border border-blue-200 bg-blue-50 px-2.5 py-1.5">
                   <div className="flex items-center gap-2 text-[12px]">
                     <span className="font-mono font-medium text-slate-700">{o.id}</span>
                     <span className={`rounded border px-1.5 py-0.5 text-[10px] font-medium ${STATUS_COLOR[o.status] ?? ''}`}>
