@@ -1,5 +1,5 @@
 /**
- * Public surface of @northwind/shared — the single source of truth for the
+ * Public surface of @demitri/shared — the single source of truth for the
  * types crossing the server ↔ web boundary.
  */
 export * from './domain';

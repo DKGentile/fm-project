@@ -5,7 +5,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { AgentEvent, AppConfig, ChatHistoryItem, DecisionOutcome, Order } from '@northwind/shared';
+import type { AgentEvent, AppConfig, ChatHistoryItem, DecisionOutcome, Order } from '@demitri/shared';
 import {
   getChatHistory,
   getChatTranscript,

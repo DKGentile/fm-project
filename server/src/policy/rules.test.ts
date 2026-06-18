@@ -7,7 +7,7 @@
 import '../testSetup.js'; // must be first — forces the hermetic JSON backend
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import type { Order, OrderItem } from '@northwind/shared';
+import type { Order, OrderItem } from '@demitri/shared';
 import { loadAnchoredCrm } from '../crm/anchor.js';
 import {
   checkCustomerStanding,

@@ -5,7 +5,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { AdminState, AgentEvent } from '@northwind/shared';
+import type { AdminState, AgentEvent } from '@demitri/shared';
 import { getAdminState, openAdminStream } from '../lib/api';
 
 const REFRESH_MS = 5000;

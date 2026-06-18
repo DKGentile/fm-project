@@ -1,4 +1,4 @@
-# Northwind Refund Agent
+# Demitri Refund Agent
 
 An AI customer-support agent that **processes or denies e-commerce refunds** by reasoning over a CRM and a strict refund policy with **Claude tool-calling** — fronted by a clean customer **chat + voice** interface and an **admin dashboard that streams the agent's reasoning in real time**.
 

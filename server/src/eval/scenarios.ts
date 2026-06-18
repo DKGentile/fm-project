@@ -8,7 +8,7 @@
  * no refund is ever processed — the eval is read-only and safe to re-run live.
  */
 
-import type { EvalOutcome } from '@northwind/shared';
+import type { EvalOutcome } from '@demitri/shared';
 
 export interface EvalScenario {
   id: string;

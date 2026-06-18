@@ -1,4 +1,4 @@
--- Drop the Northwind demo CRM schema so db/schema.sql can recreate it cleanly.
+-- Drop the Demitri demo CRM schema so db/schema.sql can recreate it cleanly.
 --
 -- This is intended for synthetic/demo data only. Do not use this pattern for
 -- production migrations.

@@ -11,7 +11,7 @@
  */
 
 import type Anthropic from '@anthropic-ai/sdk';
-import type { Channel, Customer, Emit } from '@northwind/shared';
+import type { Channel, Customer, Emit } from '@demitri/shared';
 import { config } from '../config.js';
 import { errorMessage } from '../llm/anthropic.js';
 import { getOrCreateSession } from '../events/sessionStore.js';

@@ -5,7 +5,7 @@
  */
 
 import type Anthropic from '@anthropic-ai/sdk';
-import type { AgentEvent, Channel, DecisionOutcome } from '@northwind/shared';
+import type { AgentEvent, Channel, DecisionOutcome } from '@demitri/shared';
 
 export interface SessionRecord {
   id: string;

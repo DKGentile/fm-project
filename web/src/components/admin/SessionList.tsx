@@ -1,4 +1,4 @@
-import type { SessionSummary } from '@northwind/shared';
+import type { SessionSummary } from '@demitri/shared';
 import { DECISION_META, fmtTime } from '../../lib/format';
 
 function SessionRow({ s, active, onClick }: { s: SessionSummary; active: boolean; onClick: () => void }) {

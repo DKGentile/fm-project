@@ -1,4 +1,4 @@
-import type { DecisionOutcome } from '@northwind/shared';
+import type { DecisionOutcome } from '@demitri/shared';
 
 export interface ToolDecision {
   outcome: DecisionOutcome;

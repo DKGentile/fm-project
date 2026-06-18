@@ -6,7 +6,7 @@ export default function Welcome({ onSeeOrders, name }: { onSeeOrders: () => void
         ↺
       </div>
       <div className="text-[15px] font-semibold text-slate-800">
-        Hi{firstName ? ` ${firstName}` : ''}, I'm Aria from Northwind Goods.
+        Hi{firstName ? ` ${firstName}` : ''}, I'm Aria from Demitri Goods.
       </div>
       <p className="mt-1 text-sm text-slate-500">
         I can help with refunds and returns. Browse your orders to get started, or just tell me what

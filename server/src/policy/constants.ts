@@ -3,7 +3,7 @@
  * Centralised so no magic numbers leak into the rule logic.
  */
 
-import type { ItemCategory } from '@northwind/shared';
+import type { ItemCategory } from '@demitri/shared';
 
 export const POLICY = {
   RETURN_WINDOW_DAYS: 30, // R1

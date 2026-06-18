@@ -9,7 +9,7 @@
 
 import { readFileSync } from 'node:fs';
 import pg from 'pg';
-import type { Customer, ItemCategory, ItemCondition, Order, OrderItem, OrderStatus } from '@northwind/shared';
+import type { Customer, ItemCategory, ItemCondition, Order, OrderItem, OrderStatus } from '@demitri/shared';
 import { config } from '../config.js';
 import { POLICY } from '../policy/constants.js';
 import { anchorCustomers } from './anchor.js';

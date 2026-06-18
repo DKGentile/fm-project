@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react';
-import type { AppConfig } from '@northwind/shared';
+import type { AppConfig } from '@demitri/shared';
 import { getConfig, resetDemo } from './lib/api';
 import { useAuth } from './hooks/useAuth';
 import ChatPanel from './components/chat/ChatPanel';
@@ -13,7 +13,7 @@ export default function App() {
   const { auth, login, logout } = useAuth();
   const [dark, setDark] = useState(() => {
     try {
-      return localStorage.getItem('northwind.theme') === 'dark';
+      return localStorage.getItem('demitri.theme') === 'dark';
     } catch {
       return false;
     }
@@ -26,7 +26,7 @@ export default function App() {
   useEffect(() => {
     document.documentElement.classList.toggle('dark', dark);
     try {
-      localStorage.setItem('northwind.theme', dark ? 'dark' : 'light');
+      localStorage.setItem('demitri.theme', dark ? 'dark' : 'light');
     } catch {
       /* storage may be unavailable */
     }
@@ -47,7 +47,7 @@ export default function App() {
               <span className="text-lg">↺</span>
             </div>
             <div className="leading-tight">
-              <div className="text-[15px] font-semibold text-slate-900">Northwind Refund Agent</div>
+              <div className="text-[15px] font-semibold text-slate-900">Demitri Refund Agent</div>
               <div className="text-[11px] text-slate-500">AI customer support · powered by Claude tool-calling</div>
             </div>
           </div>

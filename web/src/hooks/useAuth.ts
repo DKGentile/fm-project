@@ -11,7 +11,7 @@ export interface AuthSession {
   customer: PublicCustomer;
 }
 
-const STORAGE_KEY = 'northwind.auth';
+const STORAGE_KEY = 'demitri.auth';
 
 function readStored(): AuthSession | null {
   try {

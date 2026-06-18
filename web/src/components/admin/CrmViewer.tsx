@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import type { Customer } from '@northwind/shared';
+import type { Customer } from '@demitri/shared';
 import { getCrm } from '../../lib/api';
 
 const STATUS_COLOR: Record<string, string> = {

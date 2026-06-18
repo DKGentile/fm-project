@@ -1,4 +1,4 @@
-import type { ChatHistoryItem } from '@northwind/shared';
+import type { ChatHistoryItem } from '@demitri/shared';
 import { DECISION_META } from '../../lib/format';
 
 /** Compact timestamp: time for today's chats, month/day for older ones. */

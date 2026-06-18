@@ -4,7 +4,7 @@
  * against the policy-correct outcome. Read-only: it never calls process_refund.
  */
 
-import type { AgentEventBody, EvalOutcome, EvalResult, EvalSummary } from '@northwind/shared';
+import type { AgentEventBody, EvalOutcome, EvalResult, EvalSummary } from '@demitri/shared';
 import { config } from '../config.js';
 import { store } from '../crm/store.js';
 import { runAgentTurn } from '../agent/runAgentTurn.js';

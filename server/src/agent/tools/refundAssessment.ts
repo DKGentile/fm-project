@@ -4,7 +4,7 @@
  * customer can't social-engineer the model into an ineligible refund.
  */
 
-import type { Customer, Order, OrderItem } from '@northwind/shared';
+import type { Customer, Order, OrderItem } from '@demitri/shared';
 import {
   checkCustomerStanding,
   checkHighValue,

@@ -11,7 +11,7 @@ import type {
   Channel,
   ChatHistoryItem,
   ChatTranscriptMessage,
-} from '@northwind/shared';
+} from '@demitri/shared';
 import { runAgentTurn } from '../../agent/runAgentTurn.js';
 import { nextSeq, publish } from '../../events/eventBus.js';
 import { customerIdForToken } from '../../auth/auth.js';
@@ -25,7 +25,7 @@ export const chatRouter = Router();
 /** Hard cap on a single user message. A refund request is a sentence or two;
  *  this stops a pasted mega-string from blowing up token usage (and is backed
  *  by the 256kb JSON body limit in app.ts as a coarse outer guard). */
-const MAX_MESSAGE_CHARS = 4000;
+const MAX_MESSAGE_CHARS = 1000;
 
 chatRouter.post('/stream', async (req: Request, res: Response) => {
   const sessionId = String(req.body?.sessionId ?? '').trim();

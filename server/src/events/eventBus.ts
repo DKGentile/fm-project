@@ -5,7 +5,7 @@
  * The chat endpoint additionally streams a session's own events to that caller.
  */
 
-import type { AgentEvent } from '@northwind/shared';
+import type { AgentEvent } from '@demitri/shared';
 import { recordEvent } from './sessionStore.js';
 
 type Subscriber = (event: AgentEvent) => void;

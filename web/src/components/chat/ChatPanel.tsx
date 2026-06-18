@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import type { AppConfig } from '@northwind/shared';
+import type { AppConfig } from '@demitri/shared';
 import type { AuthSession } from '../../hooks/useAuth';
 import { useChat } from '../../hooks/useChat';
 import MessageBubble from './MessageBubble';

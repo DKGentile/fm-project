@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import type { EvalOutcome, EvalResult, EvalSummary } from '@northwind/shared';
+import type { EvalOutcome, EvalResult, EvalSummary } from '@demitri/shared';
 import { streamEvals } from '../../lib/api';
 
 const OUTCOME_LABEL: Record<EvalOutcome, string> = {

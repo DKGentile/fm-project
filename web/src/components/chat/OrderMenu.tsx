@@ -1,4 +1,4 @@
-import type { Order, OrderStatus } from '@northwind/shared';
+import type { Order, OrderStatus } from '@demitri/shared';
 
 const STATUS_PILL: Record<OrderStatus, string> = {
   delivered: 'bg-emerald-50 text-emerald-700 border-emerald-200',

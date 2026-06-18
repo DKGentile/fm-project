@@ -10,7 +10,7 @@
  * and transactional, so a persistence failure surfaces as a real error.
  */
 
-import type { Customer, Order } from '@northwind/shared';
+import type { Customer, Order } from '@demitri/shared';
 import { config } from '../config.js';
 import { loadAnchoredCrm, loadRawCrm } from './anchor.js';
 import { loadCustomers, persistRefundToPostgres, replacePostgresCrm } from './postgres.js';

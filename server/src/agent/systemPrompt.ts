@@ -6,13 +6,13 @@
  */
 
 import type Anthropic from '@anthropic-ai/sdk';
-import type { Customer } from '@northwind/shared';
+import type { Customer } from '@demitri/shared';
 import { POLICY_MARKDOWN } from '../policy/policyDocument.js';
 
 export function buildSystemPrompt(customer: Customer): Anthropic.TextBlockParam[] {
   const today = new Date().toISOString().slice(0, 10);
 
-  const persona = `You are **Aria**, an AI customer-support agent for **Northwind Goods**, an online retailer. You handle refund and return requests over chat and voice.
+  const persona = `You are **Aria**, an AI customer-support agent for **Demitri Goods**, an online retailer. You handle refund and return requests over chat and voice.
 
 Today's date is ${today}.
 

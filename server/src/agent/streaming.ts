@@ -4,7 +4,7 @@
  */
 
 import type Anthropic from '@anthropic-ai/sdk';
-import type { Emit } from '@northwind/shared';
+import type { Emit } from '@demitri/shared';
 import { config } from '../config.js';
 import { anthropic, errorMessage, isRetryableApiError } from '../llm/anthropic.js';
 import { TOOLS } from './tools/definitions.js';

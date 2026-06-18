@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import type { AgentEvent } from '@northwind/shared';
+import type { AgentEvent } from '@demitri/shared';
 import { DECISION_META, EVENT_META, fmtClock, prettyJson } from '../../lib/format';
 
 const HIDDEN = new Set(['assistant_delta']);

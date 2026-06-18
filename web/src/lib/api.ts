@@ -8,7 +8,7 @@ import type {
   EvalResult,
   EvalSummary,
   Order,
-} from '@northwind/shared';
+} from '@demitri/shared';
 
 export type EvalStreamEvent =
   | { type: 'eval_result'; result: EvalResult }

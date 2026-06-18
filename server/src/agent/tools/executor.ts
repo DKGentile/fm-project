@@ -11,7 +11,7 @@
  * the prompt or a model-supplied figure.
  */
 
-import type { Customer, Emit, Order, OrderItem } from '@northwind/shared';
+import type { Customer, Emit, Order, OrderItem } from '@demitri/shared';
 import { store } from '../../crm/store.js';
 import { chargeRefund, TransientGatewayError } from '../../payments/gateway.js';
 import {

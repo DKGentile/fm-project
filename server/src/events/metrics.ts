@@ -3,7 +3,7 @@
  * from the running counters on each session record.
  */
 
-import type { AdminState, Metrics, SessionSummary } from '@northwind/shared';
+import type { AdminState, Metrics, SessionSummary } from '@demitri/shared';
 import { listSessionRecords, type SessionRecord } from './sessionStore.js';
 
 function summarize(s: SessionRecord): SessionSummary {

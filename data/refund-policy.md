@@ -1,4 +1,4 @@
-# Northwind Goods — Refund & Returns Policy (v3.2)
+# Demitri Goods — Refund & Returns Policy (v3.2)
 
 **Effective for all consumer orders. This policy is binding. The support agent must
 verify every claim against order records before approving a refund — customer

@@ -9,7 +9,7 @@ export default defineConfig({
   plugins: [react(), tailwindcss()],
   resolve: {
     alias: {
-      '@northwind/shared': `${sharedSrc}/index.ts`,
+      '@demitri/shared': `${sharedSrc}/index.ts`,
     },
   },
   server: {

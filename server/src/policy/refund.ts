@@ -2,7 +2,7 @@
  * R6 / R11 — refund amount calculation (line subtotal minus any restocking fee).
  */
 
-import type { OrderItem } from '@northwind/shared';
+import type { OrderItem } from '@demitri/shared';
 import { restockingFeeRateFor } from './rules.js';
 
 function round2(n: number): number {

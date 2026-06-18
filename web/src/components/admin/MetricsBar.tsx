@@ -1,4 +1,4 @@
-import type { Metrics } from '@northwind/shared';
+import type { Metrics } from '@demitri/shared';
 
 type Tone = 'slate' | 'emerald' | 'rose' | 'amber' | 'sky';
 

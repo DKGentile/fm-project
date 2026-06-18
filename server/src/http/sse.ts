@@ -1,7 +1,7 @@
 /** Server-Sent Events helpers. */
 
 import type { Response } from 'express';
-import type { AgentEvent } from '@northwind/shared';
+import type { AgentEvent } from '@demitri/shared';
 
 export function openSse(res: Response): void {
   res.writeHead(200, {

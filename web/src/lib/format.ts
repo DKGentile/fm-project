@@ -1,4 +1,4 @@
-import type { AgentEventType, DecisionOutcome } from '@northwind/shared';
+import type { AgentEventType, DecisionOutcome } from '@demitri/shared';
 
 export interface EventMeta {
   label: string;

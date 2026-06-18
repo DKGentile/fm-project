@@ -9,7 +9,7 @@
 
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import type { Customer } from '@northwind/shared';
+import type { Customer } from '@demitri/shared';
 import { DAY_MS, shiftIsoDate, toUtcMidnight } from '../utils/dates.js';
 
 const CRM_PATH = fileURLToPath(new URL('../../../data/crm.json', import.meta.url));

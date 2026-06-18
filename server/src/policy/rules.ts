@@ -6,7 +6,7 @@
  * Each function maps to one or more numbered rules in data/refund-policy.md.
  */
 
-import type { Customer, Order, OrderItem } from '@northwind/shared';
+import type { Customer, Order, OrderItem } from '@demitri/shared';
 import { daysSince } from '../utils/dates.js';
 import { FINAL_SALE_CATEGORIES, POLICY } from './constants.js';
 
