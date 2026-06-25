@@ -1,5 +1,5 @@
 {
-  "_comment": "Mock CRM for Demitri Goods. All dates are anchored to _anchorDate and shifted to 'now' at load time (see server/src/data/store.ts) so the demo scenarios stay valid whenever you run it. Each customer is crafted to exercise a specific refund-policy rule.",
+  "_comment": "Mock CRM for [Private Client] Goods. All dates are anchored to _anchorDate and shifted to 'now' at load time (see server/src/data/store.ts) so the demo scenarios stay valid whenever you run it. Each customer is crafted to exercise a specific refund-policy rule.",
   "_anchorDate": "2026-06-13",
   "customers": [
     {
@@ -83,7 +83,7 @@
           "total": 100.0,
           "paymentMethod": "Visa ****1199",
           "items": [
-            { "sku": "SKU-GIFT-50", "name": "Demitri Gift Card $100", "category": "gift_card", "price": 100.0, "quantity": 1, "condition": "new", "finalSale": true }
+            { "sku": "SKU-GIFT-50", "name": "Gift Card $100", "category": "gift_card", "price": 100.0, "quantity": 1, "condition": "new", "finalSale": true }
           ]
         }
       ]
@@ -109,7 +109,7 @@
           "paymentMethod": "Amex ****3001",
           "photoEvidenceProvided": false,
           "items": [
-            { "sku": "SKU-COMP-77", "name": "Demitri UltraBook 14\"", "category": "electronics", "price": 899.0, "quantity": 1, "condition": "defective" }
+            { "sku": "SKU-COMP-77", "name": "UltraBook 14\"", "category": "electronics", "price": 899.0, "quantity": 1, "condition": "defective" }
           ]
         }
       ]
@@ -392,7 +392,7 @@
           "total": 119.0,
           "paymentMethod": "Visa ****9988",
           "items": [
-            { "sku": "SKU-PHN-07", "name": "Demitri Phone Case + Screen Protector", "category": "accessory", "price": 119.0, "quantity": 1, "condition": "damaged_by_customer" }
+            { "sku": "SKU-PHN-07", "name": "Phone Case + Screen Protector", "category": "accessory", "price": 119.0, "quantity": 1, "condition": "damaged_by_customer" }
           ]
         }
       ]

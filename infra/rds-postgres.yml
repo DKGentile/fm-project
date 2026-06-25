@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: Short-lived public RDS PostgreSQL stack for the Demitri Refund Agent demo.
+Description: Short-lived public RDS PostgreSQL stack for the [Private Client] Refund Agent demo.
 
 Parameters:
   ProjectName:
@@ -129,7 +129,7 @@ Resources:
   DBSubnetGroup:
     Type: AWS::RDS::DBSubnetGroup
     Properties:
-      DBSubnetGroupDescription: Public subnets for the short-lived Demitri demo DB.
+      DBSubnetGroupDescription: Public subnets for the short-lived [Private Client] demo DB.
       SubnetIds:
         - !Ref PublicSubnetA
         - !Ref PublicSubnetB
@@ -140,7 +140,7 @@ Resources:
   MasterPasswordSecret:
     Type: AWS::SecretsManager::Secret
     Properties:
-      Description: Master password for the short-lived Demitri demo RDS instance.
+      Description: Master password for the short-lived [Private Client] demo RDS instance.
       GenerateSecretString:
         SecretStringTemplate: !Sub '{"username":"${MasterUsername}"}'
         GenerateStringKey: password

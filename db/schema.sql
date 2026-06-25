@@ -1,4 +1,4 @@
--- Demitri Refund Agent - Postgres CRM schema
+-- [Private Client] Refund Agent - Postgres CRM schema
 --
 -- This schema stores the operational CRM data the refund tools need:
 -- customers, orders, purchased line-item snapshots, vaulted payment methods,

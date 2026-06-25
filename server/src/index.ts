@@ -1,5 +1,5 @@
 /**
- * Demitri Refund Agent — server bootstrap.
+ * [Private Client] Refund Agent — server bootstrap.
  * See app.ts for the route wiring and http/routes/* for the handlers.
  */
 
@@ -18,7 +18,7 @@ try {
 }
 
 createApp().listen(config.port, () => {
-  console.log(`\n  Demitri Refund Agent server`);
+  console.log(`\n  [Private Client] Refund Agent server`);
   console.log(`  ▸ http://localhost:${config.port}`);
   console.log(`  ▸ model: ${config.model}  effort: ${config.effort}  voice: ${config.voiceProvider}`);
   console.log(`  ▸ flaky gateway: ${config.flakyGateway ? 'on (refunds retry once)' : 'off'}`);

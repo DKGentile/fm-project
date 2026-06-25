@@ -7,7 +7,7 @@ A suggested running order that hits every required beat: **live demo (standard +
 ---
 
 ## 0. Intro (~40s)
-- "This is the Demitri Refund Agent — an AI support agent that approves or denies e-commerce refunds using Claude tool-calling."
+- "This is the [Private Client] Refund Agent — an AI support agent that approves or denies e-commerce refunds using Claude tool-calling."
 - One line on the shape: customer chat + voice on the left, an admin dashboard that streams the agent's reasoning on the right. Policy is enforced in code; the model orchestrates.
 
 ## 1. Standard refund — "the happy path" (~1 min)

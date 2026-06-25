@@ -101,7 +101,19 @@ export default function ChatPanel({ config, auth, onLogin, onLogout }: ChatPanel
                 />
               );
             }
-            return <MessageBubble key={m.id} role={m.role} text={m.text} />;
+            return (
+              <MessageBubble
+                key={m.id}
+                role={m.role}
+                text={m.text}
+                disabled={chat.pending}
+                onRefund={
+                  m.role === 'assistant'
+                    ? (id) => void chat.send(`I'd like a refund for order ${id}.`)
+                    : undefined
+                }
+              />
+            );
           })}
           {/* Live work trace while Aria is responding; it disappears once the
               reply lands (the outcome is in her summary + the Admin Dashboard).
